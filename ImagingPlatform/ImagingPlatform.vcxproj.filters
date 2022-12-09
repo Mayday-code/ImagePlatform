@@ -30,6 +30,9 @@
     <Filter Include="Camera">
       <UniqueIdentifier>{8069a233-a27e-45fd-8260-fa6465722fa6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ImageViewer">
+      <UniqueIdentifier>{a383950b-3a68-439a-a571-38bcdabfc703}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="ImagingPlatform.qrc">
@@ -61,6 +64,12 @@
     <ClCompile Include="TUCam.cpp">
       <Filter>Camera</Filter>
     </ClCompile>
+    <ClCompile Include="ImageViewer.cpp">
+      <Filter>ImageViewer</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Camera</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Stage.h">
@@ -84,5 +93,10 @@
     <ClInclude Include="MyDefine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="ImageViewer.h">
+      <Filter>ImageViewer</Filter>
+    </QtMoc>
   </ItemGroup>
 </Project>

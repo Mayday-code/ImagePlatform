@@ -10,6 +10,7 @@ class PriorStage : public Stage {
 public:
 	PriorStage() = default;
 	PriorStage(int t_port, int t_baudrate) : m_port(t_port) { }
+	~PriorStage() { close(); }
 
 	void init();
 

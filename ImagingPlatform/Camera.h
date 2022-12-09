@@ -21,13 +21,13 @@ protected:
 
 	std::mutex m_stopLock;
 	CircularBuffer m_cbuf;
-	CameraState m_state = CameraState::NOTREGISTER;
+	CameraState m_state = CameraState::NOTREGISTER; // necessary member?
 
 public:
 	//Returns image buffer X - size in pixels.
-	virtual unsigned getImageWidth() const = 0;
+	unsigned getImageWidth() const { return m_width; }
 	//Returns image buffer Y - size in pixels.
-	virtual unsigned getImageHeight() const = 0;
+	unsigned getImageHeight() const { return m_height; }
 
 	//返回ROI的尺寸
 	//virtual unsigned GetWidgetWidth() = 0;
@@ -35,7 +35,9 @@ public:
 	//virtual unsigned GetWidgetHeight() = 0;
 
 	//Returns the bit depth(dynamic range) of the pixel.
-	//virtual unsigned getBitDepth() const = 0;
+	unsigned getBitDepth() const { return m_pixDepth; }
+	//Returns the channel
+	unsigned getChannel() const { return m_channel; }
 	//Returns the current binning factor.
 	//virtual int getBinning() const = 0;
 	//Sets binning factor.
@@ -44,7 +46,7 @@ public:
 	//Sets exposure in milliseconds.
 	virtual void setExposure(double exp_ms) = 0;
 	//Returns the current exposure setting in milliseconds.
-	virtual double getExposure() const = 0;
+	double getExposure() const { return m_exp; }
 
 	//Sets the camera Region Of Interest.
 	//virtual int setROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) = 0;
@@ -56,10 +58,10 @@ public:
 	//Starts Sequence Acquisition with given interval.
 	virtual void startSequenceAcquisition() = 0;
 	//Stops an ongoing sequence acquisition
-	virtual void stopSequenceAcquisition() = 0;
+	void stopSequenceAcquisition();
 	//Flag to indicate whether Sequence Acquisition is currently running.
 	//Return true when Sequence acquisition is active, false otherwise
-	virtual bool isCapturing() const = 0;
+	bool isCapturing();
 
 	//return Buffer Top
 	virtual const unsigned char* getCircularBufferTop() = 0;
@@ -75,4 +77,6 @@ public:
 	//Sets the 图像ROI,img size不变，只是显示区域变小
 	//virtual void setROIWidget(int x, int y, int w, int h) = 0;
 	//virtual void setROIWidget_reset(int x, int y, int w, int h) = 0;
+
+	CameraState state() { return m_state; }
 };

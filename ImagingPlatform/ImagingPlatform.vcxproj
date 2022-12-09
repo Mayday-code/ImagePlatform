@@ -97,7 +97,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CircularBuffer.cpp" />
+    <ClCompile Include="ImageViewer.cpp" />
     <ClCompile Include="ImgBuffer.cpp" />
     <ClCompile Include="PriorStage.cpp" />
     <ClCompile Include="TUCam.cpp" />
@@ -110,6 +112,7 @@
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CircularBuffer.h" />
+    <QtMoc Include="ImageViewer.h" />
     <ClInclude Include="ImgBuffer.h" />
     <ClInclude Include="MyDefine.h" />
     <ClInclude Include="PriorStage.h" />

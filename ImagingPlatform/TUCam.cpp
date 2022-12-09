@@ -71,7 +71,7 @@ void TUCam::startSequenceAcquisition()
 		return;
 	}
 
-	std::lock_guard<std::mutex> g(m_stopLock);
+	std::lock_guard<std::mutex> lck(m_stopLock);
 	m_stop = false;
 
 	std::cout << "StartSequenceAcquisition..." << 3 << std::endl;
@@ -96,20 +96,11 @@ void TUCam::startSequenceAcquisition()
 	thread_capture.detach();
 }
 
-void TUCam::stopSequenceAcquisition()
-{
-	std::unique_lock<std::mutex> g(m_stopLock);
-	m_stop = true;
-	g.unlock();
-	std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-	std::cout << "StopSequenceAcquisition..." << std::endl;
-}
-
 TUCAMRET TUCam::initApi()
 {
 	/* Get the current directory */
 	m_itApi.uiCamCount = 0;
-	char configPath[] = "./";
+	char configPath[] = ".\\";
 	m_itApi.pstrConfigPath = configPath;
 
 	TUCAM_Api_Init(&m_itApi);
