@@ -38,7 +38,7 @@ bool CircularBuffer::insertImage(const unsigned char* pixArray, unsigned width, 
 {
 	std::unique_lock<std::mutex> lck(m_bufferLock);
 
-	ImgBuffer pimg;
+	ImgBuffer* pimg;
 
 	// check image dimensions
 	if (width != m_width || height != m_height) {
@@ -47,12 +47,12 @@ bool CircularBuffer::insertImage(const unsigned char* pixArray, unsigned width, 
 		lck.lock();
 	}
 
-	pimg = m_frameArray[m_insertIndex % m_frameArray.size()];
+	pimg = &m_frameArray[m_insertIndex % m_frameArray.size()];
 
-	pimg.setPixels(pixArray, m_width, m_height, m_pixDepth, m_channels);
+	pimg->setPixels(pixArray, m_width, m_height, m_pixDepth, m_channels);
 
 	m_insertIndex++;
-	m_insertIndex = m_insertIndex % m_frameArray.size();
+	m_insertIndex %= m_frameArray.size();
 
 	m_imageCounter++;
 
@@ -60,14 +60,14 @@ bool CircularBuffer::insertImage(const unsigned char* pixArray, unsigned width, 
 	return true;
 }
 
-ImgBuffer CircularBuffer::getTopImageBuffer() 
+ImgBuffer* CircularBuffer::getTopImageBuffer() 
 {
 	//make sure return the latest frame
 	std::unique_lock<std::mutex> lck(m_bufferLock);
 	m_notEmpty.wait(lck);
 
 	//std::cout << "CircularBuffer GetNthFromTopImageBuffer : " << insertIndex_ -1 << std::endl;
-	return m_frameArray[(m_insertIndex - 1) % m_frameArray.size()];
+	return &m_frameArray[(m_insertIndex - 1) % m_frameArray.size()];
 }
 
 bool CircularBuffer::resize(unsigned width, unsigned height) 

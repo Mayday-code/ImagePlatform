@@ -1,4 +1,5 @@
 #include "ImagingPlatform.h"
+#include "DemoCam.h"
 
 #include <QSerialPortInfo>
 #include <QDebug>
@@ -14,12 +15,12 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 {
     ui->setupUi(this);
 
-	qDebug("searching serial port...\n");
+	qDebug("searching serial port...");
 	for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts()) {
 		qDebug() << "Name        : " << info.portName();
-		qDebug() << "	Description : " << info.description();
-		qDebug() << "	Manufacturer: " << info.manufacturer();
-		qDebug() << endl;//To do:整理格式
+		qDebug() << "Description : " << info.description();
+		qDebug() << "Manufacturer: " << info.manufacturer();
+		//To do:整理格式
 		ui->comboBox_stageSerial->addItem(info.portName());
 	}
 
@@ -38,6 +39,8 @@ ImagingPlatform::~ImagingPlatform()
 
 void ImagingPlatform::init()
 {
+	connect(ui->pushButton_live, &QPushButton::clicked, this, &ImagingPlatform::on_pushButton_live);
+
 	connect(ui->pushButton_stageConnect, &QPushButton::clicked, this, &ImagingPlatform::stageConnectClicked);
 	connect(ui->pushButton_XLeftShift, &QPushButton::clicked, this, &ImagingPlatform::XLeftShiftClicked);
 	connect(ui->pushButton_YLeftShift, &QPushButton::clicked, this, &ImagingPlatform::YLeftShiftClicked);
@@ -48,7 +51,6 @@ void ImagingPlatform::init()
 	connect(ui->lineEdit_XSS, &QLineEdit::editingFinished, this, &ImagingPlatform::XSSEditFinished);
 	connect(ui->lineEdit_YSS, &QLineEdit::editingFinished, this, &ImagingPlatform::YSSEditFinished);
 	connect(ui->lineEdit_ZSS, &QLineEdit::editingFinished, this, &ImagingPlatform::ZSSEditFinished);
-
 	connect(this, &ImagingPlatform::updateXYPosition, this, &ImagingPlatform::on_updateXYPosition);
 	connect(this, &ImagingPlatform::updateZPosition, this, &ImagingPlatform::on_updateZPosition);
 
@@ -59,7 +61,13 @@ void ImagingPlatform::on_pushButton_live()
 {
 	// if the camera is not registered, create it at first
 	if (!m_camera) {
+		//m_camera = std::make_unique<DemoCam>();
 		m_camera = std::make_unique<TUCam>(0);
+	}
+
+	if (m_camera->state() == CameraState::NOTREGISTER) {
+		qDebug() << "ERROR : camera is not registered";
+		return;
 	}
 
 	if (m_camera->isCapturing()) {
@@ -68,17 +76,20 @@ void ImagingPlatform::on_pushButton_live()
 
 	m_camera->startSequenceAcquisition();
 
-	qDebug() << "start living......" << endl;
+	qDebug() << "start living......";
 
 	std::thread thread_living([this] {
-
 		while (true) {
-			if (m_camera->isCapturing()) {
-				const uchar* data = m_camera->getCircularBufferTop();
-				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), QImage::Format_RGB888);
-				m_viewer->setPixmap(QPixmap::fromImage(std::move(image)));
+			try {
+				if (m_camera->isCapturing()) {
+					const uchar* data = m_camera->getCircularBufferTop();
+					QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), QImage::Format_RGB888);
+					m_viewer->setPixmap(QPixmap::fromImage(image.scaled(900, 600)));
 
-				emit updateViewer();
+					emit updateViewer();
+				}
+			} catch (const std::exception& e) {
+				qDebug() << e.what();
 			}
 		}
 
@@ -93,11 +104,9 @@ void ImagingPlatform::stageConnectClicked()
 	int portNum = atoi(currentText.substr(3, currentText.size()).c_str());
 	m_stage->setPort(portNum);
 	m_stage->init();
-	ui->lineEdit_XSS->editingFinished();//初始化位移台步长
-	ui->lineEdit_YSS->editingFinished();
-	ui->lineEdit_ZSS->editingFinished();
-
-
+	emit ui->lineEdit_XSS->editingFinished();//initialize the step size of stage
+	emit ui->lineEdit_YSS->editingFinished();
+	emit ui->lineEdit_ZSS->editingFinished();
 
 	ui->pushButton_stageConnect->setStyleSheet("background-color: rgb(0,255,0)");
 }
@@ -162,7 +171,7 @@ void ImagingPlatform::on_updateXYPosition()
 {
 	auto XYPos = m_stage->getXYPos();
 	ui->label_XPosition->setText(QString::number(XYPos.first));
-	ui->label_XPosition->setText(QString::number(XYPos.second));
+	ui->label_YPosition->setText(QString::number(XYPos.second));
 }
 
 void ImagingPlatform::on_updateZPosition()

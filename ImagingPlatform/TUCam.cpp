@@ -20,8 +20,8 @@ TUCam::TUCam(int ID)
 	m_handle = m_opCam.hIdxTUCam;
 	m_state = CameraState::REGISTER;
 
-	m_height = 5472;
-	m_width = 3427;
+	m_height = 3648;
+	m_width = 5472;
 	m_pixDepth = 1;
 	m_channel = 3;
 

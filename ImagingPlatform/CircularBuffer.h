@@ -18,7 +18,7 @@ public:
 	// Instead, CiucularBuffer will change its size on its own when detecting the size of inserted image is 
 	// not equal with its size
 	bool insertImage(const unsigned char*, unsigned, unsigned);
-	ImgBuffer getTopImageBuffer();
+	ImgBuffer* getTopImageBuffer();
 	bool resize(unsigned, unsigned);
 
 	unsigned width() const { return m_width; }

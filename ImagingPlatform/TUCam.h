@@ -12,7 +12,7 @@ public:
 
 	virtual void startSequenceAcquisition() override;
 
-	virtual const unsigned char* getCircularBufferTop() override { return m_cbuf.getTopImageBuffer().getPixels(); }
+	virtual const unsigned char* getCircularBufferTop() override { return m_cbuf.getTopImageBuffer()->getPixels(); }
 	virtual unsigned long long getCircularBufferImageCount() const override { return m_cbuf.getImageCounter(); }
 
 private:
