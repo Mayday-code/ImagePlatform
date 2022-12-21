@@ -3,17 +3,28 @@
 
 #include <QSerialPortInfo>
 #include <QDebug>
+#include <QSettings>
+#include <QFileDialog>
+#include <QMessageBox>
 #include <algorithm>
 #include <string>
 #include <thread>
-
-using namespace std;
+#include <iostream>
 
 ImagingPlatform::ImagingPlatform(QWidget *parent): 
 	QMainWindow(parent), 
 	ui(new Ui::ImagingPlatformClass())
 {
     ui->setupUi(this);
+
+	//load settings
+	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
+	QString savePath = settings.value("savePath", "").toString();
+	if (!savePath.isEmpty()) {
+		ui->lineEdit_savePath->setText(savePath);
+	} else {
+		ui->lineEdit_savePath->setText(QApplication::applicationDirPath());
+	}
 
 	qDebug("searching serial port...");
 	for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts()) {
@@ -34,30 +45,44 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 
 ImagingPlatform::~ImagingPlatform()
 {
+	//save settings
+	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
+	settings.setValue("savePath", ui->lineEdit_savePath->text());
+
 	delete ui;
 }
 
 void ImagingPlatform::init()
 {
-	connect(ui->pushButton_live, &QPushButton::clicked, this, &ImagingPlatform::on_pushButton_live);
-
-	connect(ui->pushButton_stageConnect, &QPushButton::clicked, this, &ImagingPlatform::stageConnectClicked);
-	connect(ui->pushButton_XLeftShift, &QPushButton::clicked, this, &ImagingPlatform::XLeftShiftClicked);
-	connect(ui->pushButton_YLeftShift, &QPushButton::clicked, this, &ImagingPlatform::YLeftShiftClicked);
-	connect(ui->pushButton_ZLeftShift, &QPushButton::clicked, this, &ImagingPlatform::ZLeftShiftClicked);
-	connect(ui->pushButton_XRightShift, &QPushButton::clicked, this, &ImagingPlatform::XRightShiftClicked);
-	connect(ui->pushButton_YRightShift, &QPushButton::clicked, this, &ImagingPlatform::YRightShiftClicked);
-	connect(ui->pushButton_ZRightShift, &QPushButton::clicked, this, &ImagingPlatform::ZRightShiftClicked);
-	connect(ui->lineEdit_XSS, &QLineEdit::editingFinished, this, &ImagingPlatform::XSSEditFinished);
-	connect(ui->lineEdit_YSS, &QLineEdit::editingFinished, this, &ImagingPlatform::YSSEditFinished);
-	connect(ui->lineEdit_ZSS, &QLineEdit::editingFinished, this, &ImagingPlatform::ZSSEditFinished);
 	connect(this, &ImagingPlatform::updateXYPosition, this, &ImagingPlatform::on_updateXYPosition);
 	connect(this, &ImagingPlatform::updateZPosition, this, &ImagingPlatform::on_updateZPosition);
 
 	connect(this, &ImagingPlatform::updateViewer, this, &ImagingPlatform::on_updateViewer);
+
+	connect(ui->pushButton_chooseSavePath, &QPushButton::clicked, [this] {
+		QString dir = QFileDialog::getExistingDirectory();
+		this->ui->lineEdit_savePath->setText(dir);
+	});
 }
 
-void ImagingPlatform::on_pushButton_live()
+bool ImagingPlatform::checkStage()
+{
+	if (m_stage == nullptr || m_stage->getState() == DeviceState::NOTREGISTER) {
+		QMessageBox::warning(this, "Warning", "Stage is Not Connected");
+		return false;
+	}
+
+	return true;
+}
+
+void ImagingPlatform::trigger()
+{
+	triggerFinished = false;
+	m_scanCond.notify_all();
+	while (!triggerFinished);
+}
+
+void ImagingPlatform::on_pushButton_live_clicked()
 {
 	// if the camera is not registered, create it at first
 	if (!m_camera) {
@@ -65,8 +90,8 @@ void ImagingPlatform::on_pushButton_live()
 		m_camera = std::make_unique<TUCam>(0);
 	}
 
-	if (m_camera->state() == CameraState::NOTREGISTER) {
-		qDebug() << "ERROR : camera is not registered";
+	if (m_camera->state() == DeviceState::NOTREGISTER) {
+		QMessageBox::warning(this, "Warning", "Camera is Not Registered");
 		return;
 	}
 
@@ -80,16 +105,12 @@ void ImagingPlatform::on_pushButton_live()
 
 	std::thread thread_living([this] {
 		while (true) {
-			try {
-				if (m_camera->isCapturing()) {
-					const uchar* data = m_camera->getCircularBufferTop();
-					QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), QImage::Format_RGB888);
-					m_viewer->setPixmap(QPixmap::fromImage(image.scaled(900, 600)));
+			if (m_camera->isCapturing()) {
+				const uchar* data = m_camera->getCircularBufferTop();
+				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), QImage::Format_RGB888);
+				m_viewer->setPixmap(QPixmap::fromImage(image.scaled(900, 600)));
 
-					emit updateViewer();
-				}
-			} catch (const std::exception& e) {
-				qDebug() << e.what();
+				emit updateViewer();
 			}
 		}
 
@@ -97,13 +118,29 @@ void ImagingPlatform::on_pushButton_live()
 	thread_living.detach();
 }
 
-void ImagingPlatform::stageConnectClicked()
+void ImagingPlatform::on_pushButton_stageConnect_clicked()
 {
 	m_stage = std::make_unique<PriorStage>();
-	string currentText = ui->comboBox_stageSerial->currentText().toStdString();
+	std::string currentText = ui->comboBox_stageSerial->currentText().toStdString();
+	if (currentText.empty()) {
+		QMessageBox::warning(this, "Warning", "Invalid Serial Port");
+		return;
+	}
+
 	int portNum = atoi(currentText.substr(3, currentText.size()).c_str());
 	m_stage->setPort(portNum);
 	m_stage->init();
+
+	ui->pushButton_XLeftShift->setEnabled(true);
+	ui->pushButton_YLeftShift->setEnabled(true);
+	ui->pushButton_ZLeftShift->setEnabled(true);
+	ui->pushButton_XRightShift->setEnabled(true);
+	ui->pushButton_YRightShift->setEnabled(true);
+	ui->pushButton_ZRightShift->setEnabled(true);
+	ui->lineEdit_XSS->setEnabled(true);
+	ui->lineEdit_YSS->setEnabled(true);
+	ui->lineEdit_ZSS->setEnabled(true);
+
 	emit ui->lineEdit_XSS->editingFinished();//initialize the step size of stage
 	emit ui->lineEdit_YSS->editingFinished();
 	emit ui->lineEdit_ZSS->editingFinished();
@@ -111,57 +148,69 @@ void ImagingPlatform::stageConnectClicked()
 	ui->pushButton_stageConnect->setStyleSheet("background-color: rgb(0,255,0)");
 }
 
-void ImagingPlatform::XLeftShiftClicked()
+void ImagingPlatform::on_pushButton_XLeftShift_clicked()
 {
-	//错误信息会在m_stage类内输出
-	m_stage->mvrX(false);
-	emit updateXYPosition();
+	// error information will be printed by m_stage
+	if (checkStage()) {
+		m_stage->mvrX(false);
+		emit updateXYPosition();
+	}
 }
 
-void ImagingPlatform::YLeftShiftClicked() 
+void ImagingPlatform::on_pushButton_YLeftShift_clicked()
 {
-	m_stage->mvrY(false);
-	emit updateXYPosition();
+	if (checkStage()) {
+		m_stage->mvrY(false);
+		emit updateXYPosition();
+	}
 }
 
-void ImagingPlatform::ZLeftShiftClicked()
+void ImagingPlatform::on_pushButton_ZLeftShift_clicked()
 {
-	m_stage->mvrZ(false);
-	emit updateZPosition();
+	if (checkStage()) {
+		m_stage->mvrZ(false);
+		emit updateZPosition();
+	}
 }
 
-void ImagingPlatform::XRightShiftClicked()
+void ImagingPlatform::on_pushButton_XRightShift_clicked()
 {
-	m_stage->mvrX(true);
-	emit updateXYPosition();
+	if (checkStage()) {
+		m_stage->mvrX(true);
+		emit updateXYPosition();
+	}
 }
 
-void ImagingPlatform::YRightShiftClicked()
+void ImagingPlatform::on_pushButton_YRightShift_clicked()
 {
-	m_stage->mvrY(true);
-	emit updateXYPosition();
+	if (checkStage()) {
+		m_stage->mvrY(true);
+		emit updateXYPosition();
+	}
 }
 
-void ImagingPlatform::ZRightShiftClicked()
+void ImagingPlatform::on_pushButton_ZRightShift_clicked()
 {
-	m_stage->mvrZ(true);
-	emit updateZPosition();
+	if (checkStage()) {
+		m_stage->mvrZ(true);
+		emit updateZPosition();
+	}
 }
 
 //To do : 正则验证
-void ImagingPlatform::XSSEditFinished()
+void ImagingPlatform::on_lineEdit_XSS_editingFinished()
 {
 	int SS = ui->lineEdit_XSS->text().toInt();
 	m_stage->setXSS(SS);
 }
 
-void ImagingPlatform::YSSEditFinished()
+void ImagingPlatform::on_lineEdit_YSS_editingFinished()
 {
 	int SS = ui->lineEdit_YSS->text().toInt();
 	m_stage->setYSS(SS);
 }
 
-void ImagingPlatform::ZSSEditFinished()
+void ImagingPlatform::on_lineEdit_ZSS_editingFinished()
 {
 	int SS = ui->lineEdit_ZSS->text().toInt();
 	m_stage->setZSS(SS);
@@ -185,3 +234,42 @@ void ImagingPlatform::on_updateViewer()
 	m_viewer->update();
 }
 
+void ImagingPlatform::on_pushButton_XYScan_clicked()
+{
+	if (!checkStage()) return;
+	if (m_camera == nullptr || m_camera->state() == DeviceState::NOTREGISTER) {
+		QMessageBox::warning(this, "Warning", "Camera is Not Registered");
+		return;
+	}
+
+	if (!m_camera->isCapturing()) {
+		QMessageBox::warning(this, "Warning", "Camera is Not Capturing");
+		return;
+	}
+
+	int XStepNum = ui->spinBox_XStepNum->value();
+	int YStepNum = ui->spinBox_YStepNum->value();
+
+	if (XStepNum <= 0 || YStepNum <= 0) {
+		QMessageBox::warning(this, "Warning", "Invalid Step Setting");
+		return;
+	}
+
+	ui->pushButton_XYScan->setDisabled(true);
+
+	std::thread thread_scan([this, XStepNum, YStepNum] {
+		std::cout << "XY Scanning started..." << std::endl;
+		std::cout << "XStepNum : " << XStepNum 
+			<< " XStepSize : " << ui->lineEdit_XSS->text().toStdString() 
+			<< std::endl;
+		std::cout << "YStepNum : " << YStepNum 
+			<< " YStepSize : " << ui->lineEdit_YSS->text().toStdString()
+			<< std::endl;
+
+		
+
+		std::cout << "XY Scanning finished..." << std::endl;
+		ui->pushButton_XYScan->setEnabled(false);
+	});
+	thread_scan.detach();
+}

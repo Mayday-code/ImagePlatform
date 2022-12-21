@@ -21,7 +21,7 @@ protected:
 
 	std::mutex m_stopLock;
 	CircularBuffer m_cbuf;
-	CameraState m_state = CameraState::NOTREGISTER; // necessary member?
+	DeviceState m_state = DeviceState::NOTREGISTER; // necessary member?
 
 public:
 	//Returns image buffer X - size in pixels.
@@ -78,5 +78,5 @@ public:
 	//virtual void setROIWidget(int x, int y, int w, int h) = 0;
 	//virtual void setROIWidget_reset(int x, int y, int w, int h) = 0;
 
-	CameraState state() { return m_state; }
+	DeviceState state() { return m_state; }
 };

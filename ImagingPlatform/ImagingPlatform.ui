@@ -29,7 +29,7 @@
        </font>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <widget class="QWidget" name="tab">
        <attribute name="title">
@@ -200,6 +200,9 @@
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
            <widget class="QPushButton" name="pushButton_XLeftShift">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>
@@ -260,6 +263,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="pushButton_XRightShift">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>
@@ -310,6 +316,9 @@
         </item>
         <item row="1" column="2">
          <widget class="QLineEdit" name="lineEdit_XSS">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
             <horstretch>1</horstretch>
@@ -354,6 +363,9 @@
          <layout class="QHBoxLayout" name="horizontalLayout_3">
           <item>
            <widget class="QPushButton" name="pushButton_YLeftShift">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>
@@ -414,6 +426,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="pushButton_YRightShift">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>
@@ -464,6 +479,9 @@
         </item>
         <item row="2" column="2">
          <widget class="QLineEdit" name="lineEdit_YSS">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
             <horstretch>1</horstretch>
@@ -508,6 +526,9 @@
          <layout class="QHBoxLayout" name="horizontalLayout_4">
           <item>
            <widget class="QPushButton" name="pushButton_ZLeftShift">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>
@@ -568,6 +589,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="pushButton_ZRightShift">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>
@@ -618,6 +642,9 @@
         </item>
         <item row="3" column="2">
          <widget class="QLineEdit" name="lineEdit_ZSS">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
             <horstretch>1</horstretch>

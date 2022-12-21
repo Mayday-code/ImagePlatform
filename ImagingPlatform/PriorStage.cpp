@@ -43,6 +43,8 @@ void PriorStage::init()
 
 	cout << "Ok connecting" << endl;
 
+	m_state = DeviceState::REGISTER;
+
 	if (cmd("controller.z.ss.set 10")) {
 		cout << "ERROR : in api" << m_ret << endl;
 		return;

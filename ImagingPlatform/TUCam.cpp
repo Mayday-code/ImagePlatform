@@ -18,7 +18,7 @@ TUCam::TUCam(int ID)
 	}
 
 	m_handle = m_opCam.hIdxTUCam;
-	m_state = CameraState::REGISTER;
+	m_state = DeviceState::REGISTER;
 
 	m_height = 3648;
 	m_width = 5472;
@@ -42,7 +42,7 @@ TUCam::~TUCam()
 
 void TUCam::setExposure(double exp_ms) 
 { 
-	if (m_state == CameraState::NOTREGISTER) {
+	if (m_state == DeviceState::NOTREGISTER) {
 		std::cout << "ERROR : camera is not registered" << std::endl;
 	}
 
@@ -66,7 +66,7 @@ void TUCam::startSequenceAcquisition()
 {
 	std::cout << "StartSequenceAcquisition..." << 1 << std::endl;
 
-	if (m_state == CameraState::NOTREGISTER) {
+	if (m_state == DeviceState::NOTREGISTER) {
 		std::cout << "StartSequenceAcquisition..." << 2 << std::endl;
 		return;
 	}

@@ -7,7 +7,7 @@ DemoCam::DemoCam()
 {
 	std::cout << "initializing DemoCam..." << std::endl;
 
-	m_state = CameraState::REGISTER;
+	m_state = DeviceState::REGISTER;
 
 	m_height = 600;
 	m_width = 900;
@@ -23,7 +23,7 @@ DemoCam::DemoCam()
 
 void DemoCam::startSequenceAcquisition()
 {
-	std::lock_guard<std::mutex> g(m_stopLock);
+	std::lock_guard<std::mutex> lck(m_stopLock);
 	m_stop = false;
 
 	std::thread thread_capture([this] {

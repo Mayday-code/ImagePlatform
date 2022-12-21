@@ -1,5 +1,10 @@
 #pragma once
 
-class Stage {
+#include "MyDefine.h"
 
+class Stage {
+public:
+	DeviceState getState() const { return m_state; }
+protected:
+	DeviceState m_state = DeviceState::NOTREGISTER;
 };
