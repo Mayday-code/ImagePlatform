@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mutex>
+#include <cstring>
 #include "CircularBuffer.h"
 #include "MyDefine.h"
 
@@ -18,6 +19,8 @@ protected:
 	unsigned m_height = 0;
 	unsigned m_channel = 0;
 	bool m_stop = true;
+
+	char saveDir[256];
 
 	std::mutex m_stopLock;
 	CircularBuffer m_cbuf;
@@ -77,6 +80,12 @@ public:
 	//Sets the 图像ROI,img size不变，只是显示区域变小
 	//virtual void setROIWidget(int x, int y, int w, int h) = 0;
 	//virtual void setROIWidget_reset(int x, int y, int w, int h) = 0;
+
+	virtual bool save(const char* filename) = 0;
+
+	void setSavePath(const char* t_dir) {
+		strcpy_s(saveDir, strlen(t_dir) + 1, t_dir);
+	}
 
 	DeviceState state() { return m_state; }
 };

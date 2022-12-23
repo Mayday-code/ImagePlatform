@@ -115,6 +115,7 @@
     <ClInclude Include="CircularBuffer.h" />
     <QtMoc Include="ImageViewer.h" />
     <ClInclude Include="DemoCam.h" />
+    <ClInclude Include="DemoStage.h" />
     <ClInclude Include="ImgBuffer.h" />
     <ClInclude Include="MyDefine.h" />
     <ClInclude Include="PriorStage.h" />

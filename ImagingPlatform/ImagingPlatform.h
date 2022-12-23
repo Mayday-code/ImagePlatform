@@ -5,9 +5,9 @@
 #include <QSerialPort>
 #include <QGraphicsScene>
 #include "ui_ImagingPlatform.h"
-#include "PriorStage.h"
-#include "TUCam.h"
 #include "ImageViewer.h"
+#include "Stage.h"
+#include "Camera.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class ImagingPlatformClass; };
@@ -25,6 +25,7 @@ signals:
 	void updateXYPosition();
 	void updateZPosition();
 	void updateViewer();
+	void enableXYScan();
 
 private:
     Ui::ImagingPlatformClass *ui;
@@ -32,16 +33,11 @@ private:
 	ImageViewer* m_viewer;
 
 	std::unique_ptr<Camera> m_camera;
-	std::unique_ptr<PriorStage> m_stage;
-
-	std::mutex m_scanMutex;
-	std::condition_variable m_scanCond;
-	bool triggerFinished;
+	std::unique_ptr<Stage> m_stage;
 
 private:
 	void init();
 	bool checkStage();
-	void trigger();
 
 private slots:
 	// camera slots
@@ -66,5 +62,6 @@ private slots:
 
 	//function slots
 	void on_pushButton_XYScan_clicked();
+	void on_enableXYScan();
 };
 

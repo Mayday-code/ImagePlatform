@@ -15,6 +15,8 @@ public:
 	virtual const unsigned char* getCircularBufferTop() override { return m_cbuf.getTopImageBuffer()->getPixels(); }
 	virtual unsigned long long getCircularBufferImageCount() const override { return m_cbuf.getImageCounter(); }
 
+	bool save(const char* filename) override;
+
 private:
 	TUCAMRET initApi();
 	TUCAMRET unInitApi();
@@ -28,4 +30,5 @@ private:
 	TUCAM_INIT m_itApi;       // SDK API initialized object
 	TUCAM_OPEN m_opCam;       // Open camera object
 	TUCAM_FRAME m_frame;      // The frame object
+	TUCAM_FILE_SAVE m_fs;	  // The file save object
 };

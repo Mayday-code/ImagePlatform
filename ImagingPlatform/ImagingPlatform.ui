@@ -78,7 +78,7 @@
         <item row="1" column="0" colspan="2">
          <layout class="QHBoxLayout" name="horizontalLayout_5">
           <item>
-           <widget class="QLabel" name="label_savePath">
+           <widget class="QLabel" name="label_saveDir">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
               <horstretch>1</horstretch>
@@ -86,12 +86,12 @@
              </sizepolicy>
             </property>
             <property name="text">
-             <string>存储路径</string>
+             <string>存储目录</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="lineEdit_savePath">
+           <widget class="QLineEdit" name="lineEdit_saveDir">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
               <horstretch>7</horstretch>
@@ -101,7 +101,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_chooseSavePath">
+           <widget class="QPushButton" name="pushButton_chooseSaveDir">
             <property name="sizePolicy">
              <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
               <horstretch>1</horstretch>

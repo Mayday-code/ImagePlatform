@@ -27,12 +27,19 @@ TUCam::TUCam(int ID)
 
 	m_cbuf.initialize(m_width, m_height, m_pixDepth, m_channel);
 
+	auto ret = startCap();
+	if (ret != TUCAMRET_SUCCESS) {
+		std::cout << "ERROR : in starting capture ( CODE = " << ret << " )" << std::endl;
+		return;
+	}
+
 	std::cout << "camera is connected successfully" << std::endl;
 }
 
 TUCam::~TUCam()
 {
 	if (nullptr != m_handle) {
+		stopCap();
 		TUCAM_Dev_Close(m_handle);
 	}
 	printf("Close the camera success\n");
@@ -76,12 +83,6 @@ void TUCam::startSequenceAcquisition()
 
 	std::cout << "StartSequenceAcquisition..." << 3 << std::endl;
 	std::thread thread_capture([this] {
-		auto ret = startCap();
-		if (ret != TUCAMRET_SUCCESS) {
-			std::cout << "ERROR : in sequence acquisition ( CODE = " << ret << " )" << std::endl;
-			return;
-		}
-
 		while (isCapturing()) {
 			if (TUCAMRET_SUCCESS == TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame)) {
 				m_cbuf.insertImage(m_frame.pBuffer + m_frame.usOffset, m_frame.usWidth, m_frame.usHeight);
@@ -89,8 +90,6 @@ void TUCam::startSequenceAcquisition()
 				std::cout << "ERROR : fail to grab the frame" << std::endl;
 			}
 		}
-
-		stopCap();
 		std::cout << "sequence acquisition exits" << std::endl;
 	});
 	thread_capture.detach();
@@ -146,6 +145,34 @@ TUCAMRET TUCam::startCap()
 	}
 
 	return TUCAMRET_SUCCESS;
+}
+
+bool TUCam::save(const char* filename)
+{
+	m_fs.nSaveFmt = (INT32)TUFMT_TIF;
+
+	char savePath[256] = { 0 };
+	strcpy_s(savePath, strlen(saveDir) + 1, saveDir);
+	strcat_s(savePath, strlen(savePath) + strlen(filename) + 1, filename);
+
+	m_fs.pstrSavePath = savePath;       /* path */
+
+	if (TUCAMRET_SUCCESS == TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame)) {
+		TUCAM_FRAME frame;
+		memcpy(&frame, &m_frame, sizeof(TUCAM_FRAME));
+		m_fs.pFrame = &frame;
+
+		if (TUCAMRET_SUCCESS != TUCAM_File_SaveImage(m_handle, m_fs)) {
+			std::cout << "ERROR : fail to save frame" << std::endl;
+			return false;
+		}
+
+	} else {
+		std::cout << "ERROR : fail to grab the frame" << std::endl;
+		return false;
+	}
+
+	return true;
 }
 
 void TUCam::stopCap()

@@ -1,4 +1,7 @@
 #include "ImagingPlatform.h"
+#include "DemoStage.h"
+#include "PriorStage.h"
+#include "TUCam.h"
 #include "DemoCam.h"
 
 #include <QSerialPortInfo>
@@ -21,9 +24,9 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
 	QString savePath = settings.value("savePath", "").toString();
 	if (!savePath.isEmpty()) {
-		ui->lineEdit_savePath->setText(savePath);
+		ui->lineEdit_saveDir->setText(savePath);
 	} else {
-		ui->lineEdit_savePath->setText(QApplication::applicationDirPath());
+		ui->lineEdit_saveDir->setText(QApplication::applicationDirPath());
 	}
 
 	qDebug("searching serial port...");
@@ -45,9 +48,10 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 
 ImagingPlatform::~ImagingPlatform()
 {
+	//m_camera->stopSequenceAcquisition();// mutex destroy when busy
 	//save settings
 	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
-	settings.setValue("savePath", ui->lineEdit_savePath->text());
+	settings.setValue("savePath", ui->lineEdit_saveDir->text());
 
 	delete ui;
 }
@@ -59,9 +63,23 @@ void ImagingPlatform::init()
 
 	connect(this, &ImagingPlatform::updateViewer, this, &ImagingPlatform::on_updateViewer);
 
-	connect(ui->pushButton_chooseSavePath, &QPushButton::clicked, [this] {
-		QString dir = QFileDialog::getExistingDirectory();
-		this->ui->lineEdit_savePath->setText(dir);
+	connect(this, &ImagingPlatform::enableXYScan, this, &ImagingPlatform::on_enableXYScan);
+
+	connect(ui->pushButton_chooseSaveDir, &QPushButton::clicked, [this] {
+		QString dir;
+		bool goon;
+		do {
+			dir = QFileDialog::getExistingDirectory();
+			if (dir.contains(QRegExp("[\\x4e00-\\x9fa5]+"))) {
+				// Warn and repeat if dir contains Chinese character
+				QMessageBox::warning(this, "Warning", "Cannot Contain Chinese Character");
+				goon = true;
+			} else {
+				goon = false;
+			}
+		} while (goon);
+			
+		this->ui->lineEdit_saveDir->setText(dir);
 	});
 }
 
@@ -75,19 +93,12 @@ bool ImagingPlatform::checkStage()
 	return true;
 }
 
-void ImagingPlatform::trigger()
-{
-	triggerFinished = false;
-	m_scanCond.notify_all();
-	while (!triggerFinished);
-}
-
 void ImagingPlatform::on_pushButton_live_clicked()
 {
 	// if the camera is not registered, create it at first
 	if (!m_camera) {
-		//m_camera = std::make_unique<DemoCam>();
-		m_camera = std::make_unique<TUCam>(0);
+		m_camera = std::make_unique<DemoCam>();
+		//m_camera = std::make_unique<TUCam>(0);
 	}
 
 	if (m_camera->state() == DeviceState::NOTREGISTER) {
@@ -107,7 +118,8 @@ void ImagingPlatform::on_pushButton_live_clicked()
 		while (true) {
 			if (m_camera->isCapturing()) {
 				const uchar* data = m_camera->getCircularBufferTop();
-				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), QImage::Format_RGB888);
+				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), 
+					m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_RGB888);
 				m_viewer->setPixmap(QPixmap::fromImage(image.scaled(900, 600)));
 
 				emit updateViewer();
@@ -120,15 +132,16 @@ void ImagingPlatform::on_pushButton_live_clicked()
 
 void ImagingPlatform::on_pushButton_stageConnect_clicked()
 {
-	m_stage = std::make_unique<PriorStage>();
 	std::string currentText = ui->comboBox_stageSerial->currentText().toStdString();
 	if (currentText.empty()) {
-		QMessageBox::warning(this, "Warning", "Invalid Serial Port");
-		return;
+		//QMessageBox::warning(this, "Warning", "Invalid Serial Port");
+		//return;
+		m_stage = std::make_unique<DemoStage>();
+	} else {
+		int portNum = atoi(currentText.substr(3, currentText.size()).c_str());
+		m_stage = std::make_unique<PriorStage>(portNum, 0);
 	}
 
-	int portNum = atoi(currentText.substr(3, currentText.size()).c_str());
-	m_stage->setPort(portNum);
 	m_stage->init();
 
 	ui->pushButton_XLeftShift->setEnabled(true);
@@ -144,6 +157,9 @@ void ImagingPlatform::on_pushButton_stageConnect_clicked()
 	emit ui->lineEdit_XSS->editingFinished();//initialize the step size of stage
 	emit ui->lineEdit_YSS->editingFinished();
 	emit ui->lineEdit_ZSS->editingFinished();
+
+	emit updateXYPosition();
+	emit updateZPosition();
 
 	ui->pushButton_stageConnect->setStyleSheet("background-color: rgb(0,255,0)");
 }
@@ -266,10 +282,54 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 			<< " YStepSize : " << ui->lineEdit_YSS->text().toStdString()
 			<< std::endl;
 
-		
+		m_camera->stopSequenceAcquisition();
+
+		// if saving is selected
+		//if () {
+			// check dir(cannot contain Chinese characters)
+			QString QDir = this->ui->lineEdit_saveDir->text();
+			m_camera->setSavePath(QDir.toStdString().c_str());
+		//}
+
+		int index = 0;
+		char filename[100] = { 0 };
+
+		bool forward = true;
+
+		for (int y = 0; y < YStepNum; y++) {
+			for (int x = 0; x < XStepNum; x++) {
+				// branch depending on preview or not
+				sprintf_s(filename, 100, "\\%03d", index++);
+				if (!m_camera->save(filename)) {
+					std::cout << "ERROR : Unexpected stop when XY Scanning!" << std::endl;
+					ui->pushButton_XYScan->setEnabled(true);
+					return;
+				}
+
+				if (x != XStepNum - 1) {
+					forward ? on_pushButton_XRightShift_clicked() :
+						on_pushButton_XLeftShift_clicked();
+					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				}
+			}
+
+			if (y != YStepNum - 1) {// change direction
+				on_pushButton_YRightShift_clicked();
+				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+			}
+
+			forward = !forward;
+		}
 
 		std::cout << "XY Scanning finished..." << std::endl;
-		ui->pushButton_XYScan->setEnabled(false);
+		emit enableXYScan();
+
+		m_camera->startSequenceAcquisition();
 	});
 	thread_scan.detach();
+}
+
+void ImagingPlatform::on_enableXYScan()
+{
+	ui->pushButton_XYScan->setEnabled(true);
 }

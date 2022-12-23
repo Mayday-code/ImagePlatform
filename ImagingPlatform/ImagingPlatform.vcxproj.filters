@@ -99,6 +99,9 @@
     <ClInclude Include="DemoCam.h">
       <Filter>Camera</Filter>
     </ClInclude>
+    <ClInclude Include="DemoStage.h">
+      <Filter>Stage</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="ImageViewer.h">

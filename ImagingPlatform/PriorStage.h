@@ -5,37 +5,29 @@
 
 #include <utility>
 
-//TO do : 加入继承关系，修改接口
 class PriorStage : public Stage {
 public:
-	PriorStage() = default;
-	PriorStage(int t_port, int t_baudrate) : m_port(t_port) { }
+	PriorStage(int t_port, int t_baudrate) : Stage(t_port, t_baudrate) { }
 	~PriorStage() { close(); }
 
-	void init();
+	void init() override;
 
 	//void moveX();
 	//void moveY();
 	//void moveZ();
 
-	void mvrX(bool);
-	void mvrY(bool);
-	void mvrZ(bool);
+	void mvrX(bool) override;
+	void mvrY(bool) override;
+	void mvrZ(bool) override;
 
 	void close();
 
-	std::pair<double, double> getXYPos();
-	double getZPos();
+	std::pair<double, double> getXYPos() override;
+	double getZPos() override;
 
-	int getID() { return m_sessionID; }
-
-	void setPort(int t_port) { m_port = t_port; }
-	void setBaudrate(int t_baudrate) { }
-	void setID(int t_ID) { m_sessionID = t_ID; }
-
-	void setXSS(int t_XSS) { m_xSS = t_XSS; }
-	void setYSS(int t_YSS) { m_ySS = t_YSS; }
-	void setZSS(int t_ZSS) { m_zSS = t_ZSS; }
+	void setXSS(int t_XSS) override { m_xSS = t_XSS; }
+	void setYSS(int t_YSS) override { m_ySS = t_YSS; }
+	void setZSS(int t_ZSS) override { m_zSS = t_ZSS; }
 	
 private:
 	int cmd(const char *tx) {
@@ -43,12 +35,9 @@ private:
 	}
 
 private:
-	int m_sessionID;
 	int m_ret;
 	char m_rx[1024];
 	char m_command[256];
-
-	int m_port;
 
 	int m_stageBusy;
 	int m_zBusy;
