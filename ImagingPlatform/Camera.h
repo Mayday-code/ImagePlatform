@@ -5,12 +5,18 @@
 #include "CircularBuffer.h"
 #include "MyDefine.h"
 
+/*!
+ * \class Camera
+ * \brief Base class for all cameras.
+ *
+ * \author XYH
+ * \date 12 2022
+ */
 class Camera {
 public:
 	virtual ~Camera() = default;
 
 protected:
-	// members for camera
 	unsigned int m_pixDepth = 0;
 	//unsigned roiX_;
 	//unsigned roiY_;
@@ -24,31 +30,48 @@ protected:
 
 	std::mutex m_stopLock;
 	CircularBuffer m_cbuf;
-	DeviceState m_state = DeviceState::NOTREGISTER; // necessary member?
+	DeviceState m_state = DeviceState::NOTREGISTER; 
 
 public:
-	//Returns image buffer X - size in pixels.
+	/*!
+	 * \brief Get image width - size in pixels.
+	 */
 	unsigned getImageWidth() const { return m_width; }
-	//Returns image buffer Y - size in pixels.
+
+	/*!
+	 * \brief Get image height - size in pixels.
+	 */
 	unsigned getImageHeight() const { return m_height; }
 
-	//·µ»ØROIµÄ³ß´ç
+	//Gets the size of ROI
 	//virtual unsigned GetWidgetWidth() = 0;
 	//Returns image buffer Y - size in pixels.
 	//virtual unsigned GetWidgetHeight() = 0;
 
-	//Returns the bit depth(dynamic range) of the pixel.
+	/*!
+	 * \brief Get the bit depth(dynamic range) of the pixel.
+	 */
 	unsigned getBitDepth() const { return m_pixDepth; }
-	//Returns the channel
+
+	/*!
+	 * \brief Get the size of channels.
+	 */
 	unsigned getChannel() const { return m_channel; }
+
 	//Returns the current binning factor.
 	//virtual int getBinning() const = 0;
 	//Sets binning factor.
 	//virtual int setBinning(int binSize) = 0;
 
-	//Sets exposure in milliseconds.
+	/*!
+	 * \brief Set exposure in milliseconds.
+	 * \param exp_ms exposure in milliseconds
+	 */
 	virtual void setExposure(double exp_ms) = 0;
-	//Returns the current exposure setting in milliseconds.
+
+	/*!
+	 * \brief Get the current exposure setting in milliseconds.
+	 */
 	double getExposure() const { return m_exp; }
 
 	//Sets the camera Region Of Interest.
@@ -58,17 +81,30 @@ public:
 	// Resets the Region of Interest to full frame.
 	//virtual int clearROI() = 0;
 
-	//Starts Sequence Acquisition with given interval.
+	/*!
+	 * \brief Start Sequence Acquisition.
+	 */
 	virtual void startSequenceAcquisition() = 0;
-	//Stops an ongoing sequence acquisition
+
+	/*!
+	 * \brief Stop an ongoing sequence acquisition.
+	 */
 	void stopSequenceAcquisition();
-	//Flag to indicate whether Sequence Acquisition is currently running.
-	//Return true when Sequence acquisition is active, false otherwise
+
+	/*!
+	 * \brief Flag to indicate whether Sequence Acquisition is currently running.
+	 * \return bool : true when Sequence acquisition is active, false otherwise
+	 */
 	bool isCapturing();
 
-	//return Buffer Top
+	/*!
+	 * \brief Return Buffer Top.
+	 */
 	virtual const unsigned char* getCircularBufferTop() = 0;
-	//return Buffer image count
+
+	/*!
+	 * \brief Return Buffer image count.
+	 */
 	virtual unsigned long long getCircularBufferImageCount() const = 0;
 
 	//Sets the camera subarray
@@ -81,11 +117,16 @@ public:
 	//virtual void setROIWidget(int x, int y, int w, int h) = 0;
 	//virtual void setROIWidget_reset(int x, int y, int w, int h) = 0;
 
+	/*!
+	 * \brief Save current image.
+	 * \param filename the name of this image (without extension).
+	 * \return bool : True if image is saved successfully, false otherwise
+	 */
 	virtual bool save(const char* filename) = 0;
 
-	void setSavePath(const char* t_dir) {
+	void setSaveDir(const char* t_dir) {
 		strcpy_s(saveDir, strlen(t_dir) + 1, t_dir);
 	}
 
-	DeviceState state() { return m_state; }
+	DeviceState getState() { return m_state; }
 };

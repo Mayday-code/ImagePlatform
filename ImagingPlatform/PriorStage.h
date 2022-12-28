@@ -5,16 +5,23 @@
 
 #include <utility>
 
+/*!
+ * \class PriorStage
+ * \brief For Prior stage
+ *
+ * \author XYH
+ * \date 12 2022
+ */
 class PriorStage : public Stage {
 public:
-	PriorStage(int t_port, int t_baudrate) : Stage(t_port, t_baudrate) { }
+	PriorStage(int t_port) : Stage(t_port) { }
 	~PriorStage() { close(); }
 
 	void init() override;
 
-	//void moveX();
-	//void moveY();
-	//void moveZ();
+	void moveX(int pos) override;
+	void moveY(int pos) override;
+	void moveZ(int pos) override;
 
 	void mvrX(bool) override;
 	void mvrY(bool) override;
@@ -30,29 +37,30 @@ public:
 	void setZSS(int t_ZSS) override { m_zSS = t_ZSS; }
 	
 private:
+	/*!
+	 * \brief Send command to Prior stage.
+	 * \param tx The command
+	 * \return int : 0 - Success, others - Fail.
+	 */
 	int cmd(const char *tx) {
 		return m_ret = priorSDK.Cmd(m_sessionID, tx, m_rx);
 	}
 
 private:
-	int m_ret;
+	int m_ret;			    
 	char m_rx[1024];
 	char m_command[256];
 
 	int m_stageBusy;
 	int m_zBusy;
 
-	int m_x = 0;
-	int m_y = 0;
-	int m_z = 0;
-
 	int m_xSS;
 	int m_ySS;
-	int m_zSS;
+	int m_zSS; // in 10nm
 
-	//速度
+	// speed
 
-	//步长单位
+	// unit
 
 	PriorScientificSDK priorSDK;
 };

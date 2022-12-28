@@ -23,8 +23,19 @@ DemoCam::DemoCam()
 
 void DemoCam::startSequenceAcquisition()
 {
+	if (m_state == DeviceState::NOTREGISTER) {
+		std::cout << "ERROR : camara is not registered" << std::endl;
+		return;
+	}
+
+	if (isCapturing()) {
+		return;
+	}
+
 	std::lock_guard<std::mutex> lck(m_stopLock);
 	m_stop = false;
+
+	std::cout << "StartSequenceAcquisition..." << std::endl;
 
 	std::thread thread_capture([this] {
 		while (isCapturing()) {
@@ -44,20 +55,12 @@ void DemoCam::generateSyntheticImage()
 
 	static std::default_random_engine generator;
 	static std::uniform_int_distribution<int> distribution(0, 255);
-	//int dice_roll = distribution(generator);  // generates number in the range 1..6
-	for (int j = 0; j < height; j++) {
-		for (int k = 0; k < width; k++) {
+	for (int h = 0; h < height; h++) {
+		for (int w = 0; w < width; w++) {
 			try {
-				long lIndex = width * j + k;
-				/*
-				val = 0;
-				if (j == (k + 100)) {
-					val = 1000;
-				}
-				*(pBuf + lIndex) = val;
-				*/
-				 unsigned char val = static_cast<unsigned char>(distribution(generator));
-				 buf[lIndex] = val;
+				long index = width * h + w;
+				unsigned char val = static_cast<unsigned char>(distribution(generator));
+				buf[index] = val;
 			} catch (const std::exception& e) {
 				std::cout << "EXCEPTION : " << e.what() << std::endl;
 			}

@@ -6,6 +6,7 @@
 #include <QGraphicsScene>
 #include "ui_ImagingPlatform.h"
 #include "ImageViewer.h"
+#include "Previewer.h"
 #include "Stage.h"
 #include "Camera.h"
 
@@ -26,11 +27,14 @@ signals:
 	void updateZPosition();
 	void updateViewer();
 	void enableXYScan();
+	void addFOV(const QPoint& point, const QImage& image, int r, int c);
+	void showPreviewer();
 
 private:
     Ui::ImagingPlatformClass *ui;
 	QGraphicsScene *m_scene;
 	ImageViewer* m_viewer;
+	Previewer *m_previewer = nullptr;
 
 	std::unique_ptr<Camera> m_camera;
 	std::unique_ptr<Stage> m_stage;
@@ -51,6 +55,9 @@ private slots:
 	void on_pushButton_XRightShift_clicked();
 	void on_pushButton_YRightShift_clicked();
 	void on_pushButton_ZRightShift_clicked();
+
+	void on_moveTo(const QPoint& point);
+
 	void on_lineEdit_XSS_editingFinished();
 	void on_lineEdit_YSS_editingFinished();
 	void on_lineEdit_ZSS_editingFinished();
@@ -63,5 +70,7 @@ private slots:
 	//function slots
 	void on_pushButton_XYScan_clicked();
 	void on_enableXYScan();
+	void on_addFOV(const QPoint& point, const QImage& pixmap, int r, int c);
+	void on_showPreviewer();
 };
 

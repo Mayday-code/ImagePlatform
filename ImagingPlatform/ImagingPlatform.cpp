@@ -3,6 +3,7 @@
 #include "PriorStage.h"
 #include "TUCam.h"
 #include "DemoCam.h"
+#include "PreviewItem.h"
 
 #include <QSerialPortInfo>
 #include <QDebug>
@@ -34,7 +35,6 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 		qDebug() << "Name        : " << info.portName();
 		qDebug() << "Description : " << info.description();
 		qDebug() << "Manufacturer: " << info.manufacturer();
-		//To do:整理格式
 		ui->comboBox_stageSerial->addItem(info.portName());
 	}
 
@@ -49,6 +49,7 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 ImagingPlatform::~ImagingPlatform()
 {
 	//m_camera->stopSequenceAcquisition();// mutex destroy when busy
+	//std::this_thread::sleep_for(std::chrono::milliseconds(500));
 	//save settings
 	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
 	settings.setValue("savePath", ui->lineEdit_saveDir->text());
@@ -64,6 +65,8 @@ void ImagingPlatform::init()
 	connect(this, &ImagingPlatform::updateViewer, this, &ImagingPlatform::on_updateViewer);
 
 	connect(this, &ImagingPlatform::enableXYScan, this, &ImagingPlatform::on_enableXYScan);
+	connect(this, &ImagingPlatform::addFOV, this, &ImagingPlatform::on_addFOV);
+	connect(this, &ImagingPlatform::showPreviewer, this, &ImagingPlatform::on_showPreviewer);
 
 	connect(ui->pushButton_chooseSaveDir, &QPushButton::clicked, [this] {
 		QString dir;
@@ -101,7 +104,7 @@ void ImagingPlatform::on_pushButton_live_clicked()
 		//m_camera = std::make_unique<TUCam>(0);
 	}
 
-	if (m_camera->state() == DeviceState::NOTREGISTER) {
+	if (m_camera->getState() == DeviceState::NOTREGISTER) {
 		QMessageBox::warning(this, "Warning", "Camera is Not Registered");
 		return;
 	}
@@ -139,7 +142,7 @@ void ImagingPlatform::on_pushButton_stageConnect_clicked()
 		m_stage = std::make_unique<DemoStage>();
 	} else {
 		int portNum = atoi(currentText.substr(3, currentText.size()).c_str());
-		m_stage = std::make_unique<PriorStage>(portNum, 0);
+		m_stage = std::make_unique<PriorStage>(portNum);
 	}
 
 	m_stage->init();
@@ -154,7 +157,7 @@ void ImagingPlatform::on_pushButton_stageConnect_clicked()
 	ui->lineEdit_YSS->setEnabled(true);
 	ui->lineEdit_ZSS->setEnabled(true);
 
-	emit ui->lineEdit_XSS->editingFinished();//initialize the step size of stage
+	emit ui->lineEdit_XSS->editingFinished(); // initialize the step size of stage
 	emit ui->lineEdit_YSS->editingFinished();
 	emit ui->lineEdit_ZSS->editingFinished();
 
@@ -213,7 +216,16 @@ void ImagingPlatform::on_pushButton_ZRightShift_clicked()
 	}
 }
 
-//To do : 正则验证
+void ImagingPlatform::on_moveTo(const QPoint& point)
+{
+	if (checkStage()) {
+		m_stage->moveX(point.x());
+		m_stage->moveY(point.y());
+		emit updateXYPosition();
+	}
+}
+
+//To do : RegExp check
 void ImagingPlatform::on_lineEdit_XSS_editingFinished()
 {
 	int SS = ui->lineEdit_XSS->text().toInt();
@@ -253,7 +265,7 @@ void ImagingPlatform::on_updateViewer()
 void ImagingPlatform::on_pushButton_XYScan_clicked()
 {
 	if (!checkStage()) return;
-	if (m_camera == nullptr || m_camera->state() == DeviceState::NOTREGISTER) {
+	if (m_camera == nullptr || m_camera->getState() == DeviceState::NOTREGISTER) {
 		QMessageBox::warning(this, "Warning", "Camera is Not Registered");
 		return;
 	}
@@ -273,7 +285,22 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 
 	ui->pushButton_XYScan->setDisabled(true);
 
-	std::thread thread_scan([this, XStepNum, YStepNum] {
+	bool save = !ui->radioButton_preview->isChecked();
+
+	if (save) {
+		m_camera->stopSequenceAcquisition();
+
+		QString QDir = this->ui->lineEdit_saveDir->text();
+		m_camera->setSaveDir(QDir.toStdString().c_str());
+	}
+	else {
+		Previewer* p = findChild<Previewer*>();
+		if (p) p->close();
+		m_previewer = new Previewer(this);
+		connect(m_previewer, &Previewer::moveTo, this, &ImagingPlatform::on_moveTo);
+	}
+
+	std::thread thread_scan([this, XStepNum, YStepNum, save] {
 		std::cout << "XY Scanning started..." << std::endl;
 		std::cout << "XStepNum : " << XStepNum 
 			<< " XStepSize : " << ui->lineEdit_XSS->text().toStdString() 
@@ -282,15 +309,6 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 			<< " YStepSize : " << ui->lineEdit_YSS->text().toStdString()
 			<< std::endl;
 
-		m_camera->stopSequenceAcquisition();
-
-		// if saving is selected
-		//if () {
-			// check dir(cannot contain Chinese characters)
-			QString QDir = this->ui->lineEdit_saveDir->text();
-			m_camera->setSavePath(QDir.toStdString().c_str());
-		//}
-
 		int index = 0;
 		char filename[100] = { 0 };
 
@@ -298,13 +316,23 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 
 		for (int y = 0; y < YStepNum; y++) {
 			for (int x = 0; x < XStepNum; x++) {
-				// branch depending on preview or not
-				sprintf_s(filename, 100, "\\%03d", index++);
-				if (!m_camera->save(filename)) {
-					std::cout << "ERROR : Unexpected stop when XY Scanning!" << std::endl;
-					ui->pushButton_XYScan->setEnabled(true);
-					return;
+				if (save) {
+					sprintf_s(filename, 100, "\\%03d", index);
+					if (!m_camera->save(filename)) {
+						std::cout << "ERROR : Unexpected stop when XY Scanning!" << std::endl;
+						ui->pushButton_XYScan->setEnabled(true);
+						return;
+					}
+				} else {
+					const uchar* data = m_camera->getCircularBufferTop();
+					QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(),
+						m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_RGB888);
+					auto pair = m_stage->getXYPos();
+					QPoint point(pair.first, pair.second);
+					emit addFOV(point, image, y, forward ? x : XStepNum - 1 - x);
 				}
+
+				index++;
 
 				if (x != XStepNum - 1) {
 					forward ? on_pushButton_XRightShift_clicked() :
@@ -321,6 +349,8 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 			forward = !forward;
 		}
 
+		if (!save) emit showPreviewer();
+
 		std::cout << "XY Scanning finished..." << std::endl;
 		emit enableXYScan();
 
@@ -332,4 +362,16 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 void ImagingPlatform::on_enableXYScan()
 {
 	ui->pushButton_XYScan->setEnabled(true);
+}
+
+void ImagingPlatform::on_addFOV(const QPoint& point, const QImage& image, int r, int c)
+{
+	PreviewItem* item = new PreviewItem(point);
+	item->setPixmap(QPixmap::fromImage(image.scaled(600, 400)));
+	m_previewer->addPreviewItem(item, r, c);
+}
+
+void ImagingPlatform::on_showPreviewer()
+{
+	m_previewer->show();
 }

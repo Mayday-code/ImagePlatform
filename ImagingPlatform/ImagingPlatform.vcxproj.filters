@@ -30,7 +30,7 @@
     <Filter Include="Camera">
       <UniqueIdentifier>{8069a233-a27e-45fd-8260-fa6465722fa6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ImageViewer">
+    <Filter Include="Widgets">
       <UniqueIdentifier>{a383950b-3a68-439a-a571-38bcdabfc703}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -65,13 +65,16 @@
       <Filter>Camera</Filter>
     </ClCompile>
     <ClCompile Include="ImageViewer.cpp">
-      <Filter>ImageViewer</Filter>
+      <Filter>Widgets</Filter>
     </ClCompile>
     <ClCompile Include="Camera.cpp">
       <Filter>Camera</Filter>
     </ClCompile>
     <ClCompile Include="DemoCam.cpp">
       <Filter>Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="Previewer.cpp">
+      <Filter>Widgets</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -105,7 +108,13 @@
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="ImageViewer.h">
-      <Filter>ImageViewer</Filter>
+      <Filter>Widgets</Filter>
+    </QtMoc>
+    <QtMoc Include="PreviewItem.h">
+      <Filter>Widgets</Filter>
+    </QtMoc>
+    <QtMoc Include="Previewer.h">
+      <Filter>Widgets</Filter>
     </QtMoc>
   </ItemGroup>
 </Project>

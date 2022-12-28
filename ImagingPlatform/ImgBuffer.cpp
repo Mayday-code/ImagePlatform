@@ -12,10 +12,17 @@ const unsigned char* ImgBuffer::getPixels() const
 	return m_pixels;
 }
 
-void ImgBuffer::setPixels(const void* pix, unsigned width, unsigned height, unsigned pixDepth, unsigned channels)
+void ImgBuffer::setPixels(const unsigned char* pix, unsigned width, unsigned height, unsigned pixDepth, unsigned channels)
 {
 	//must make sure pix has the same size as m_pixels
-	memcpy((void*)m_pixels, pix, width * height * pixDepth * channels);
+	for (size_t h = 0; h < height; h++) {
+		for (size_t w = 0; w < width * channels; w += channels) {
+			for (size_t c = 0; c < channels; c++) {
+				m_pixels[h * width * channels + w + c] = 
+					pix[(height - 1 - h) * width * channels + w + c];
+			}
+		}
+	}
 }
 
 void ImgBuffer::resize(unsigned t_width, unsigned t_height, unsigned t_pixDepth, unsigned t_channels)

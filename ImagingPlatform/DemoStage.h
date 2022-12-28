@@ -3,9 +3,16 @@
 #include "Stage.h"
 #include <iostream>
 
+/*!
+ * \class DemoStage
+ * \brief Simulated stage
+ *
+ * \author XYH
+ * \date 12 2022
+ */
 class DemoStage : public Stage {
 public:
-	DemoStage(int t_port = 0, int t_baudrate = 0) : Stage(t_port, t_baudrate) { }
+	DemoStage(int t_port = 0) : Stage(t_port) { }
 	~DemoStage() { std::cout << "DemoStage destructed" << std::endl; }
 
 	void init() { 
@@ -13,26 +20,30 @@ public:
 		std::cout << "DemoStage initialized" << std::endl; 
 	}
 
-	//void moveX();
-	//void moveY();
-	//void moveZ();
+	void moveX(int pos) override { x = pos; }
+	void moveY(int pos) override { y = pos; }
+	void moveZ(int pos) override { z = pos; }
 
-	void mvrX(bool) { std::cout << "DemoStage mvrX" << std::endl; }
-	void mvrY(bool) { std::cout << "DemoStage mvrY" << std::endl; }
-	void mvrZ(bool) { std::cout << "DemoStage mvrZ" << std::endl; }
+	void mvrX(bool isForward) { x += XSS * (isForward ? 1 : -1); }
+	void mvrY(bool isForward) { y += YSS * (isForward ? 1 : -1); }
+	void mvrZ(bool isForward) { z += ZSS * 10 * (isForward ? 1 : -1); }
 
-	std::pair<double, double> getXYPos() { 
-		return { 3.14, 3.14 };
-	}
-
-	double getZPos() { 
-		return 3.14;
-	}
+	std::pair<double, double> getXYPos() { return { x, y }; }
+	double getZPos() { return z; }
 
 	int getID() { return m_sessionID; }
 	void setID(int t_ID) { m_sessionID = t_ID; }
 
-	void setXSS(int t_XSS) { std::cout << "DemoStage setXSS" << std::endl; }
-	void setYSS(int t_YSS) { std::cout << "DemoStage setYSS" << std::endl; }
-	void setZSS(int t_ZSS) { std::cout << "DemoStage setZSS" << std::endl; }
+	void setXSS(int t_XSS) { XSS = t_XSS; }
+	void setYSS(int t_YSS) { YSS = t_YSS; }
+	void setZSS(int t_ZSS) { ZSS = t_ZSS; }
+
+private:
+	int x = 0;
+	int y = 0;
+	int z = 0;
+
+	int XSS;
+	int YSS;
+	int ZSS; // in 10nm
 };

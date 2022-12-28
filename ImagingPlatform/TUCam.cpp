@@ -71,17 +71,20 @@ void TUCam::setExposure(double exp_ms)
 
 void TUCam::startSequenceAcquisition()
 {
-	std::cout << "StartSequenceAcquisition..." << 1 << std::endl;
-
 	if (m_state == DeviceState::NOTREGISTER) {
-		std::cout << "StartSequenceAcquisition..." << 2 << std::endl;
+		std::cout << "ERROR : camara is not registered" << std::endl;
+		return;
+	}
+
+	if (isCapturing()) {
 		return;
 	}
 
 	std::lock_guard<std::mutex> lck(m_stopLock);
 	m_stop = false;
 
-	std::cout << "StartSequenceAcquisition..." << 3 << std::endl;
+	std::cout << "StartSequenceAcquisition..." << std::endl;
+
 	std::thread thread_capture([this] {
 		while (isCapturing()) {
 			if (TUCAMRET_SUCCESS == TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame)) {

@@ -102,6 +102,7 @@
     <ClCompile Include="DemoCam.cpp" />
     <ClCompile Include="ImageViewer.cpp" />
     <ClCompile Include="ImgBuffer.cpp" />
+    <ClCompile Include="Previewer.cpp" />
     <ClCompile Include="PriorStage.cpp" />
     <ClCompile Include="TUCam.cpp" />
     <QtRcc Include="ImagingPlatform.qrc" />
@@ -118,6 +119,8 @@
     <ClInclude Include="DemoStage.h" />
     <ClInclude Include="ImgBuffer.h" />
     <ClInclude Include="MyDefine.h" />
+    <QtMoc Include="PreviewItem.h" />
+    <QtMoc Include="Previewer.h" />
     <ClInclude Include="PriorStage.h" />
     <ClInclude Include="Stage.h" />
     <ClInclude Include="TUCam.h" />

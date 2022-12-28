@@ -11,7 +11,7 @@ public:
 	ImgBuffer(ImgBuffer&& rhs) noexcept : m_pixels(rhs.m_pixels) { rhs.m_pixels = nullptr; }
 	~ImgBuffer();
 
-	void setPixels(const void* pixArray, unsigned, unsigned, unsigned, unsigned);
+	void setPixels(const unsigned char* pixArray, unsigned, unsigned, unsigned, unsigned);
 	const unsigned char* getPixels() const;
 
 	void resize(unsigned, unsigned, unsigned, unsigned);
