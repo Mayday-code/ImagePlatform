@@ -4,6 +4,7 @@
 #include <QtWidgets/QMainWindow>
 #include <QSerialPort>
 #include <QGraphicsScene>
+#include <atomic>
 #include "ui_ImagingPlatform.h"
 #include "ImageViewer.h"
 #include "Previewer.h"
@@ -38,6 +39,8 @@ private:
 
 	std::unique_ptr<Camera> m_camera;
 	std::unique_ptr<Stage> m_stage;
+
+	std::atomic<bool> m_scanStop{ false };
 
 private:
 	void init();

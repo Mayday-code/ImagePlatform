@@ -122,7 +122,7 @@ public:
 	 * \param filename the name of this image (without extension).
 	 * \return bool : True if image is saved successfully, false otherwise
 	 */
-	virtual bool save(const char* filename) = 0;
+	virtual bool save(const char* filename, int format) = 0;
 
 	void setSaveDir(const char* t_dir) {
 		strcpy_s(saveDir, strlen(t_dir) + 1, t_dir);

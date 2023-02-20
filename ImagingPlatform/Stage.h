@@ -19,16 +19,9 @@ public:
 	virtual void init() = 0;
 
 	/*!
-	 * \brief Request the X to move to the given position
-	 * \param pos X-target position in μm
+	 * \brief Request X and Y to move to the given position
 	 */
-	virtual void moveX(int pos) = 0;
-
-	/*!
-	 * \brief Request the Y to move to the given position
-	 * \param pos Y-target position in μm
-	 */
-	virtual void moveY(int pos) = 0;
+	virtual void moveXY(int xpos, int ypos) = 0;
 
 	/*!
 	 * \brief Request the Z to move to the given position

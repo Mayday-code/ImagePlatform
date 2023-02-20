@@ -20,9 +20,8 @@ public:
 		std::cout << "DemoStage initialized" << std::endl; 
 	}
 
-	void moveX(int pos) override { x = pos; }
-	void moveY(int pos) override { y = pos; }
-	void moveZ(int pos) override { z = pos; }
+	void moveXY(int xpos, int ypos) override { x = xpos; y = ypos; }
+	void moveZ(int zpos) override { z = zpos; }
 
 	void mvrX(bool isForward) { x += XSS * (isForward ? 1 : -1); }
 	void mvrY(bool isForward) { y += YSS * (isForward ? 1 : -1); }

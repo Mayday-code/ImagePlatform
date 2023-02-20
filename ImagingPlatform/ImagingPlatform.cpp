@@ -15,6 +15,8 @@
 #include <thread>
 #include <iostream>
 
+using namespace std::literals;
+
 ImagingPlatform::ImagingPlatform(QWidget *parent): 
 	QMainWindow(parent), 
 	ui(new Ui::ImagingPlatformClass())
@@ -24,6 +26,10 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 	//load settings
 	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
 	QString savePath = settings.value("savePath", "").toString();
+	QString XSS = settings.value("X step size", "600").toString();
+	QString YSS = settings.value("Y step size", "350").toString();
+	ui->lineEdit_XSS->setText(XSS);
+	ui->lineEdit_YSS->setText(YSS);
 	if (!savePath.isEmpty()) {
 		ui->lineEdit_saveDir->setText(savePath);
 	} else {
@@ -53,6 +59,8 @@ ImagingPlatform::~ImagingPlatform()
 	//save settings
 	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
 	settings.setValue("savePath", ui->lineEdit_saveDir->text());
+	settings.setValue("X step size", ui->lineEdit_XSS->text());
+	settings.setValue("Y step size", ui->lineEdit_YSS->text());
 
 	delete ui;
 }
@@ -84,6 +92,7 @@ void ImagingPlatform::init()
 			
 		this->ui->lineEdit_saveDir->setText(dir);
 	});
+	connect(ui->pushButton_stop, &QPushButton::clicked, [this] { m_scanStop = true; });
 }
 
 bool ImagingPlatform::checkStage()
@@ -100,8 +109,8 @@ void ImagingPlatform::on_pushButton_live_clicked()
 {
 	// if the camera is not registered, create it at first
 	if (!m_camera) {
-		m_camera = std::make_unique<DemoCam>();
-		//m_camera = std::make_unique<TUCam>(0);
+		//m_camera = std::make_unique<DemoCam>();
+		m_camera = std::make_unique<TUCam>(0);
 	}
 
 	if (m_camera->getState() == DeviceState::NOTREGISTER) {
@@ -122,7 +131,7 @@ void ImagingPlatform::on_pushButton_live_clicked()
 			if (m_camera->isCapturing()) {
 				const uchar* data = m_camera->getCircularBufferTop();
 				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), 
-					m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_RGB888);
+					m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
 				m_viewer->setPixmap(QPixmap::fromImage(image.scaled(900, 600)));
 
 				emit updateViewer();
@@ -219,8 +228,7 @@ void ImagingPlatform::on_pushButton_ZRightShift_clicked()
 void ImagingPlatform::on_moveTo(const QPoint& point)
 {
 	if (checkStage()) {
-		m_stage->moveX(point.x());
-		m_stage->moveY(point.y());
+		m_stage->moveXY(point.x(), point.y());
 		emit updateXYPosition();
 	}
 }
@@ -278,6 +286,16 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 	int XStepNum = ui->spinBox_XStepNum->value();
 	int YStepNum = ui->spinBox_YStepNum->value();
 
+	int saveFormat;
+	switch (int index = ui->comboBox_format->currentIndex(); index) {
+	case 0: saveFormat = TUFMT_PNG; break;
+	case 1: saveFormat = TUFMT_TIF; break;
+	case 2: saveFormat = TUFMT_JPG; break;
+	case 3: saveFormat = TUFMT_RAW; break;
+	}
+
+	int initSerialNum = ui->lineEdit_serialNum->text().toInt();
+
 	if (XStepNum <= 0 || YStepNum <= 0) {
 		QMessageBox::warning(this, "Warning", "Invalid Step Setting");
 		return;
@@ -300,7 +318,7 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 		connect(m_previewer, &Previewer::moveTo, this, &ImagingPlatform::on_moveTo);
 	}
 
-	std::thread thread_scan([this, XStepNum, YStepNum, save] {
+	std::thread thread_scan([this, XStepNum, YStepNum, save, saveFormat, initSerialNum] {
 		std::cout << "XY Scanning started..." << std::endl;
 		std::cout << "XStepNum : " << XStepNum 
 			<< " XStepSize : " << ui->lineEdit_XSS->text().toStdString() 
@@ -309,16 +327,16 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 			<< " YStepSize : " << ui->lineEdit_YSS->text().toStdString()
 			<< std::endl;
 
-		int index = 0;
+		int index = initSerialNum;
 		char filename[100] = { 0 };
 
 		bool forward = true;
 
-		for (int y = 0; y < YStepNum; y++) {
-			for (int x = 0; x < XStepNum; x++) {
+		for (int y = 0; y < YStepNum && !m_scanStop; y++) {
+			for (int x = 0; x < XStepNum && !m_scanStop; x++) {
 				if (save) {
-					sprintf_s(filename, 100, "\\%03d", index);
-					if (!m_camera->save(filename)) {
+					sprintf_s(filename, 100, "\\%04d", index);
+					if (!m_camera->save(filename, saveFormat)) {
 						std::cout << "ERROR : Unexpected stop when XY Scanning!" << std::endl;
 						ui->pushButton_XYScan->setEnabled(true);
 						return;
@@ -326,7 +344,7 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 				} else {
 					const uchar* data = m_camera->getCircularBufferTop();
 					QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(),
-						m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_RGB888);
+						m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
 					auto pair = m_stage->getXYPos();
 					QPoint point(pair.first, pair.second);
 					emit addFOV(point, image, y, forward ? x : XStepNum - 1 - x);
@@ -337,17 +355,19 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 				if (x != XStepNum - 1) {
 					forward ? on_pushButton_XRightShift_clicked() :
 						on_pushButton_XLeftShift_clicked();
-					std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+					std::this_thread::sleep_for(150ms);
 				}
 			}
 
 			if (y != YStepNum - 1) {// change direction
 				on_pushButton_YRightShift_clicked();
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+				std::this_thread::sleep_for(150ms);
 			}
 
 			forward = !forward;
 		}
+
+		m_scanStop = false;
 
 		if (!save) emit showPreviewer();
 

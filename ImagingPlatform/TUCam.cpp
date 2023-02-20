@@ -20,6 +20,25 @@ TUCam::TUCam(int ID)
 	m_handle = m_opCam.hIdxTUCam;
 	m_state = DeviceState::REGISTER;
 
+	TUCAM_PROP_ATTR attrProp;
+	attrProp.nIdxChn = 0;    // Current channel 
+	attrProp.idProp = TUIDP_EXPOSURETM;
+	if (TUCAMRET_SUCCESS == TUCAM_Prop_GetAttr(m_handle, &attrProp)) {
+		// Exposure time range 
+		std::cout << "Minimum exposure time : " << attrProp.dbValMin << std::endl;
+		std::cout << "Maximum exposure time : " << attrProp.dbValMax << std::endl;
+		std::cout << "Default exposure time : " << attrProp.dbValDft << std::endl;
+		std::cout << "Exposure time step : " << attrProp.dbValStep << std::endl;
+	}
+
+	// get exposure for testing
+	double dbVal = 1.0f;
+	if (TUCAMRET_SUCCESS == TUCAM_Prop_GetValue(m_handle, TUIDP_EXPOSURETM, &dbVal)) {
+		std::cout << "Current exposure : " << dbVal << std::endl;
+	}
+
+
+
 	m_height = 3648;
 	m_width = 5472;
 	m_pixDepth = 1;
@@ -150,9 +169,9 @@ TUCAMRET TUCam::startCap()
 	return TUCAMRET_SUCCESS;
 }
 
-bool TUCam::save(const char* filename)
+bool TUCam::save(const char* filename, int format)
 {
-	m_fs.nSaveFmt = (INT32)TUFMT_TIF;
+	m_fs.nSaveFmt = (INT32)format;
 
 	char savePath[256] = { 0 };
 	strcpy_s(savePath, strlen(saveDir) + 1, saveDir);

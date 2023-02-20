@@ -82,26 +82,9 @@ double PriorStage::getZPos()
 	return position * 10;
 }
 
-void PriorStage::moveX(int pos)
+void PriorStage::moveXY(int xpos, int ypos)
 {
-	sprintf_s(m_command, sizeof(m_command), "controller.stage.goto-position %d %d", pos, 0);
-
-	if (cmd(m_command)) {
-		cout << "Api error " << m_ret << endl;
-		return;
-	}
-
-	//Wait while stage is moving
-	do {
-		cmd("controller.stage.busy.get");
-
-		m_stageBusy = atoi(m_rx);
-	} while (m_stageBusy != 0);
-}
-
-void PriorStage::moveY(int pos)
-{
-	sprintf_s(m_command, sizeof(m_command), "controller.stage.goto-position %d %d", 0, pos);
+	sprintf_s(m_command, sizeof(m_command), "controller.stage.goto-position %d %d", xpos, ypos);
 
 	if (cmd(m_command)) {
 		cout << "Api error " << m_ret << endl;

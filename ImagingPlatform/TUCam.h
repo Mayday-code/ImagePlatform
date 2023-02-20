@@ -15,7 +15,7 @@ public:
 	virtual const unsigned char* getCircularBufferTop() override { return m_cbuf.getTopImageBuffer()->getPixels(); }
 	virtual unsigned long long getCircularBufferImageCount() const override { return m_cbuf.getImageCounter(); }
 
-	bool save(const char* filename) override;
+	bool save(const char* filename, int format) override;
 
 private:
 	TUCAMRET initApi();

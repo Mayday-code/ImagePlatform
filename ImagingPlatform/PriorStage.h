@@ -19,8 +19,7 @@ public:
 
 	void init() override;
 
-	void moveX(int pos) override;
-	void moveY(int pos) override;
+	void moveXY(int xpos, int ypos) override;
 	void moveZ(int pos) override;
 
 	void mvrX(bool) override;
