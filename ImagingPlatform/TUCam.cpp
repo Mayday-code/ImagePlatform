@@ -39,6 +39,8 @@ TUCam::TUCam(int ID)
 
 
 
+
+
 	m_height = 3648;
 	m_width = 5472;
 	m_pixDepth = 1;

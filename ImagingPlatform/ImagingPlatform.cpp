@@ -355,13 +355,13 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 				if (x != XStepNum - 1) {
 					forward ? on_pushButton_XRightShift_clicked() :
 						on_pushButton_XLeftShift_clicked();
-					std::this_thread::sleep_for(150ms);
+					std::this_thread::sleep_for(200ms);
 				}
 			}
 
 			if (y != YStepNum - 1) {// change direction
 				on_pushButton_YRightShift_clicked();
-				std::this_thread::sleep_for(150ms);
+				std::this_thread::sleep_for(200ms);
 			}
 
 			forward = !forward;
