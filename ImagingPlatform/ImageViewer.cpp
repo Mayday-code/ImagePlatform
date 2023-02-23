@@ -2,9 +2,10 @@
 
 #include <QPainter>
 
-void ImageViewer::setPixmap(QPixmap&& rhs)
+void ImageViewer::setPixmap(const QPixmap& rhs)
 {
-	m_pixmap = std::move(rhs);
+	std::lock_guard<std::mutex> lck(updateLock);
+	m_pixmap = rhs;
 }
 
 QRectF ImageViewer::boundingRect() const
@@ -14,5 +15,6 @@ QRectF ImageViewer::boundingRect() const
 
 void ImageViewer::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
+	std::lock_guard<std::mutex> lck(updateLock);
 	painter->drawPixmap(-m_pixmap.width() / 2, -m_pixmap.height() / 2, m_pixmap);
 }

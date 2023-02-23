@@ -6,6 +6,7 @@
 #include "PreviewItem.h"
 
 #include <QSerialPortInfo>
+#include <QInputDialog>
 #include <QDebug>
 #include <QSettings>
 #include <QFileDialog>
@@ -53,9 +54,10 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 }
 
 ImagingPlatform::~ImagingPlatform()
-{
-	//m_camera->stopSequenceAcquisition();// mutex destroy when busy
-	//std::this_thread::sleep_for(std::chrono::milliseconds(500));
+{	
+	m_running = false;
+	if (m_camera && m_camera->isCapturing()) 
+		m_camera->stopSequenceAcquisition();
 	//save settings
 	QSettings settings(QApplication::applicationDirPath() + "/Configuration.ini", QSettings::IniFormat);
 	settings.setValue("savePath", ui->lineEdit_saveDir->text());
@@ -92,7 +94,8 @@ void ImagingPlatform::init()
 			
 		this->ui->lineEdit_saveDir->setText(dir);
 	});
-	connect(ui->pushButton_stop, &QPushButton::clicked, [this] { m_scanStop = true; });
+	connect(ui->pushButton_stopScan, &QPushButton::clicked, [this] { m_scanStop = true; });
+	connect(this, &ImagingPlatform::setStopEnable, this, &ImagingPlatform::on_setStopEnable);
 }
 
 bool ImagingPlatform::checkStage()
@@ -109,8 +112,8 @@ void ImagingPlatform::on_pushButton_live_clicked()
 {
 	// if the camera is not registered, create it at first
 	if (!m_camera) {
-		//m_camera = std::make_unique<DemoCam>();
-		m_camera = std::make_unique<TUCam>(0);
+		m_camera = std::make_unique<DemoCam>();
+		//m_camera = std::make_unique<TUCam>(0);
 	}
 
 	if (m_camera->getState() == DeviceState::NOTREGISTER) {
@@ -127,17 +130,17 @@ void ImagingPlatform::on_pushButton_live_clicked()
 	qDebug() << "start living......";
 
 	std::thread thread_living([this] {
-		while (true) {
-			if (m_camera->isCapturing()) {
+		while (m_running) {
+			while (m_camera->isCapturing()) {
 				const uchar* data = m_camera->getCircularBufferTop();
-				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(), 
+				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(),
 					m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
-				m_viewer->setPixmap(QPixmap::fromImage(image.scaled(900, 600)));
+				QPixmap pixmap = QPixmap::fromImage(image.scaled(900, 600));
+				m_viewer->setPixmap(pixmap);
 
 				emit updateViewer();
 			}
 		}
-
 	});
 	thread_living.detach();
 }
@@ -283,6 +286,17 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 		return;
 	}
 
+	bool bOk = false;
+	int waitingTime = QInputDialog::getInt(this,
+		"Set waiting time",
+		"µÈ´ýÊ±¼ä(ms)£º",
+		150,
+		0,
+		1000,
+		1,
+		&bOk);
+	if (!bOk) return;
+
 	int XStepNum = ui->spinBox_XStepNum->value();
 	int YStepNum = ui->spinBox_YStepNum->value();
 
@@ -301,7 +315,7 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 		return;
 	}
 
-	ui->pushButton_XYScan->setDisabled(true);
+	ui->pushButton_XYScan->setDisabled(true);  
 
 	bool save = !ui->radioButton_preview->isChecked();
 
@@ -318,7 +332,7 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 		connect(m_previewer, &Previewer::moveTo, this, &ImagingPlatform::on_moveTo);
 	}
 
-	std::thread thread_scan([this, XStepNum, YStepNum, save, saveFormat, initSerialNum] {
+	std::thread thread_scan([this, XStepNum, YStepNum, save, saveFormat, initSerialNum, waitingTime] {
 		std::cout << "XY Scanning started..." << std::endl;
 		std::cout << "XStepNum : " << XStepNum 
 			<< " XStepSize : " << ui->lineEdit_XSS->text().toStdString() 
@@ -331,6 +345,8 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 		char filename[100] = { 0 };
 
 		bool forward = true;
+
+		emit setStopEnable(true);
 
 		for (int y = 0; y < YStepNum && !m_scanStop; y++) {
 			for (int x = 0; x < XStepNum && !m_scanStop; x++) {
@@ -355,18 +371,19 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 				if (x != XStepNum - 1) {
 					forward ? on_pushButton_XRightShift_clicked() :
 						on_pushButton_XLeftShift_clicked();
-					std::this_thread::sleep_for(200ms);
+					std::this_thread::sleep_for(std::chrono::milliseconds(waitingTime));
 				}
 			}
 
 			if (y != YStepNum - 1) {// change direction
 				on_pushButton_YRightShift_clicked();
-				std::this_thread::sleep_for(200ms);
+				std::this_thread::sleep_for(std::chrono::milliseconds(waitingTime));
 			}
 
 			forward = !forward;
 		}
 
+		emit setStopEnable(false);
 		m_scanStop = false;
 
 		if (!save) emit showPreviewer();
@@ -387,11 +404,16 @@ void ImagingPlatform::on_enableXYScan()
 void ImagingPlatform::on_addFOV(const QPoint& point, const QImage& image, int r, int c)
 {
 	PreviewItem* item = new PreviewItem(point);
-	item->setPixmap(QPixmap::fromImage(image.scaled(600, 400)));
+	item->setPixmap(QPixmap::fromImage(image.scaled(450, 300)));
 	m_previewer->addPreviewItem(item, r, c);
 }
 
 void ImagingPlatform::on_showPreviewer()
 {
 	m_previewer->show();
+}
+
+void ImagingPlatform::on_setStopEnable(bool flag)
+{
+	ui->pushButton_stopScan->setEnabled(flag);
 }

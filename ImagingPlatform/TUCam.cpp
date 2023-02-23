@@ -37,12 +37,11 @@ TUCam::TUCam(int ID)
 		std::cout << "Current exposure : " << dbVal << std::endl;
 	}
 
+	TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 2);
 
 
-
-
-	m_height = 3648;
-	m_width = 5472;
+	m_height = 1216;
+	m_width = 1824;
 	m_pixDepth = 1;
 	m_channel = 3;
 

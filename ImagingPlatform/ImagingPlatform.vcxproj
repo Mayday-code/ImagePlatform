@@ -66,6 +66,7 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)include;D:\opencv\opencv-4.5.5\opencv\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)lib;D:\opencv\opencv-4.5.5\opencv\build\x64\vc15\lib</AdditionalLibraryDirectories>
@@ -75,7 +76,8 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)include;D:\opencv\opencv-4.5.5\opencv\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(SolutionDir)lib;D:\opencv\opencv-4.5.5\opencv\build\x64\vc15\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>

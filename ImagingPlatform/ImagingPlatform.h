@@ -30,6 +30,7 @@ signals:
 	void enableXYScan();
 	void addFOV(const QPoint& point, const QImage& image, int r, int c);
 	void showPreviewer();
+	void setStopEnable(bool flag);
 
 private:
     Ui::ImagingPlatformClass *ui;
@@ -40,7 +41,8 @@ private:
 	std::unique_ptr<Camera> m_camera;
 	std::unique_ptr<Stage> m_stage;
 
-	std::atomic<bool> m_scanStop{ false };
+	std::atomic_bool m_scanStop{ false };
+	std::atomic_bool m_running{ true };
 
 private:
 	void init();
@@ -75,5 +77,6 @@ private slots:
 	void on_enableXYScan();
 	void on_addFOV(const QPoint& point, const QImage& pixmap, int r, int c);
 	void on_showPreviewer();
+	void on_setStopEnable(bool flag);
 };
 
