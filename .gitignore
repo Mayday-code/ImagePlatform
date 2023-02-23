@@ -265,3 +265,7 @@ __pycache__/
 /include/PriorScientificSDK.h
 /include/TUCamApi.h
 /include/TUDefine.h
+/include/tinytiffwriter.h
+/include/tinytiff_defs.h
+/include/tinytiff_export.h
+/lib/TinyTIFFShared_Release.lib

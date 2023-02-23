@@ -4,6 +4,7 @@
 #include "TUCam.h"
 #include "DemoCam.h"
 #include "PreviewItem.h"
+#include "tinytiffwriter.h"
 
 #include <QSerialPortInfo>
 #include <QInputDialog>
@@ -320,7 +321,7 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 	bool save = !ui->radioButton_preview->isChecked();
 
 	if (save) {
-		m_camera->stopSequenceAcquisition();
+		//m_camera->stopSequenceAcquisition();
 
 		QString QDir = this->ui->lineEdit_saveDir->text();
 		m_camera->setSaveDir(QDir.toStdString().c_str());
@@ -342,21 +343,33 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 			<< std::endl;
 
 		int index = initSerialNum;
-		char filename[100] = { 0 };
+		char filename[256] = { 0 };
 
 		bool forward = true;
+
+		QString saveDir = ui->lineEdit_saveDir->text();
+		sprintf_s(filename, 256, "%s\\%d.tif", saveDir.toStdString().c_str(), index);
+		TinyTIFFWriterFile* tif = TinyTIFFWriter_open(filename, 8, TinyTIFFWriter_UInt,
+			3,
+			m_camera->getImageWidth(),
+			m_camera->getImageHeight(),
+			TinyTIFFWriter_RGB
+		);
 
 		emit setStopEnable(true);
 
 		for (int y = 0; y < YStepNum && !m_scanStop; y++) {
 			for (int x = 0; x < XStepNum && !m_scanStop; x++) {
 				if (save) {
-					sprintf_s(filename, 100, "\\%04d", index);
+					const unsigned char* data = m_camera->getCircularBufferTop();
+					TinyTIFFWriter_writeImage(tif, data);
+
+					/*sprintf_s(filename, 100, "\\%04d", index);
 					if (!m_camera->save(filename, saveFormat)) {
 						std::cout << "ERROR : Unexpected stop when XY Scanning!" << std::endl;
 						ui->pushButton_XYScan->setEnabled(true);
 						return;
-					}
+					}*/
 				} else {
 					const uchar* data = m_camera->getCircularBufferTop();
 					QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(),
@@ -371,16 +384,22 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 				if (x != XStepNum - 1) {
 					forward ? on_pushButton_XRightShift_clicked() :
 						on_pushButton_XLeftShift_clicked();
+					// directly delete?
 					std::this_thread::sleep_for(std::chrono::milliseconds(waitingTime));
 				}
 			}
 
 			if (y != YStepNum - 1) {// change direction
 				on_pushButton_YRightShift_clicked();
+				// directly delete?
 				std::this_thread::sleep_for(std::chrono::milliseconds(waitingTime));
 			}
 
 			forward = !forward;
+		}
+
+		if (!m_scanStop) {
+			TinyTIFFWriter_close(tif);
 		}
 
 		emit setStopEnable(false);
