@@ -2,6 +2,7 @@
 
 #include <mutex>
 #include <cstring>
+#include <atomic>
 #include "CircularBuffer.h"
 #include "MyDefine.h"
 
@@ -13,9 +14,6 @@
  * \date 12 2022
  */
 class Camera {
-public:
-	virtual ~Camera() = default;
-
 protected:
 	unsigned int m_pixDepth = 0;
 	//unsigned roiX_;
@@ -24,15 +22,46 @@ protected:
 	unsigned m_width = 0;
 	unsigned m_height = 0;
 	unsigned m_channel = 0;
-	bool m_stop = true;
+	mutable std::mutex m_stateMutex;
 
-	char saveDir[256];
-
-	std::mutex m_stopLock;
 	CircularBuffer m_cbuf;
-	DeviceState m_state = DeviceState::NOTREGISTER; 
+	CameraState m_state = CameraState::OFFLINE;
+
+	/*!
+	 * \brief 初始化api接口
+	 */
+	virtual bool init() = 0;
+
+
+	/*!
+	 * \brief 打开相机
+	 */
+	virtual bool open() = 0;
+
+	/*!
+	 * \brief 打开相机
+	 */
+	virtual bool open() = 0;
 
 public:
+	virtual ~Camera() = default;
+
+	/*!
+	 * \brief Set exposure in milliseconds.
+	 * \param exp_ms exposure in milliseconds
+	 */
+	virtual void setExposure(double exp_ms) = 0;
+
+	/*!
+	 * \brief Sets the camera Region Of Interest.
+	 */
+	virtual void setROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) = 0;
+
+	/*!
+	 * \brief Start Sequence Acquisition.
+	 */
+	virtual void startSequenceAcquisition() = 0;
+
 	/*!
 	 * \brief Get image width - size in pixels.
 	 */
@@ -64,48 +93,60 @@ public:
 	//virtual int setBinning(int binSize) = 0;
 
 	/*!
-	 * \brief Set exposure in milliseconds.
-	 * \param exp_ms exposure in milliseconds
-	 */
-	virtual void setExposure(double exp_ms) = 0;
-
-	/*!
 	 * \brief Get the current exposure setting in milliseconds.
 	 */
 	double getExposure() const { return m_exp; }
 
-	//Sets the camera Region Of Interest.
-	//virtual int setROI(unsigned x, unsigned y, unsigned xSize, unsigned ySize) = 0;
 	//Returns the actual dimensions of the current ROI.
 	//virtual int getROI(unsigned& x, unsigned& y, unsigned& xSize, unsigned& ySize) = 0;
 	// Resets the Region of Interest to full frame.
 	//virtual int clearROI() = 0;
 
 	/*!
-	 * \brief Start Sequence Acquisition.
-	 */
-	virtual void startSequenceAcquisition() = 0;
-
-	/*!
 	 * \brief Stop an ongoing sequence acquisition.
 	 */
-	void stopSequenceAcquisition();
+	void stopSequenceAcquisition() {
+		std::unique_lock<std::mutex> lck(m_stateMutex);
+		m_state = CameraState::ONLINE;
+		lck.unlock();
+		std::this_thread::sleep_for(200ms);
+	}
 
 	/*!
 	 * \brief Flag to indicate whether Sequence Acquisition is currently running.
 	 * \return bool : true when Sequence acquisition is active, false otherwise
 	 */
-	bool isCapturing();
+	bool isCapturing() const { std::lock_guard<std::mutex> lck(m_stateMutex); return m_state == CameraState::LIVING; }
 
 	/*!
 	 * \brief Return Buffer Top.
 	 */
-	virtual const unsigned char* getCircularBufferTop() = 0;
+	ImgBuffer* getTopBuffer() { return m_cbuf.GetTopImageBuffer(); }
 
 	/*!
-	 * \brief Return Buffer image count.
+	 * \brief 返回缓冲队列中的最后一帧
 	 */
-	virtual unsigned long long getCircularBufferImageCount() const = 0;
+	ImgBuffer* getNextBuffer() { return m_cbuf.GetNextImageBuffer(); }
+
+	/*!
+	 * \brief 可在测试时使用，用于分析缓冲队列队头队尾的情况
+	 */
+	long getInsertIndex() const { return m_cbuf.getInsertIndex(); }
+
+	/*!
+	 * \brief 可在测试时使用，用于分析缓冲队列队头队尾的情况
+	 */
+	long getSaveIndex() const { return m_cbuf.getSaveIndex(); }
+
+	/*!
+	 * \brief 清空缓冲区
+	 */
+	void clearCircularBuffer() { m_cbuf.Clear(); }
+
+	/*!
+	 * \brief 返回缓冲区生命周期内累计插入图像数量
+	 */
+	unsigned long long getCircularBufferImageCount() const { return m_cbuf.GetImageCounter(); }
 
 	//Sets the camera subarray
 	//virtual void SetSubArray(unsigned xSize, unsigned ySize) = 0;
@@ -117,16 +158,5 @@ public:
 	//virtual void setROIWidget(int x, int y, int w, int h) = 0;
 	//virtual void setROIWidget_reset(int x, int y, int w, int h) = 0;
 
-	/*!
-	 * \brief Save current image.
-	 * \param filename the name of this image (without extension).
-	 * \return bool : True if image is saved successfully, false otherwise
-	 */
-	virtual bool save(const char* filename, int format) = 0;
-
-	void setSaveDir(const char* t_dir) {
-		strcpy_s(saveDir, strlen(t_dir) + 1, t_dir);
-	}
-
-	DeviceState getState() { return m_state; }
+	CameraState getState() { std::lock_guard<std::mutex> lck(m_stateMutex); return m_state; }
 };

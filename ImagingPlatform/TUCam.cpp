@@ -109,11 +109,18 @@ void TUCam::startSequenceAcquisition()
 		while (isCapturing()) {
 			if (TUCAMRET_SUCCESS == TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame)) {
 				m_cbuf.insertImage(m_frame.pBuffer + m_frame.usOffset, m_frame.usWidth, m_frame.usHeight);
+#ifndef _DEBUG
+				static unsigned index = 0;
+				std::cout << "inserted " << index++ << std::endl;
+#endif // !_DEBUG
+
 			} else {
 				std::cout << "ERROR : fail to grab the frame" << std::endl;
 			}
 		}
 		std::cout << "sequence acquisition exits" << std::endl;
+
+		// 将相机采集真正停止
 	});
 	thread_capture.detach();
 }

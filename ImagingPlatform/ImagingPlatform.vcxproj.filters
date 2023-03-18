@@ -58,17 +58,11 @@
     <ClCompile Include="CircularBuffer.cpp">
       <Filter>Buffer</Filter>
     </ClCompile>
-    <ClCompile Include="ImgBuffer.cpp">
-      <Filter>Buffer</Filter>
-    </ClCompile>
     <ClCompile Include="TUCam.cpp">
       <Filter>Camera</Filter>
     </ClCompile>
     <ClCompile Include="ImageViewer.cpp">
       <Filter>Widgets</Filter>
-    </ClCompile>
-    <ClCompile Include="Camera.cpp">
-      <Filter>Camera</Filter>
     </ClCompile>
     <ClCompile Include="DemoCam.cpp">
       <Filter>Camera</Filter>

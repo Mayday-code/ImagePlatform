@@ -16,6 +16,7 @@
 #include <string>
 #include <thread>
 #include <iostream>
+#include <stdio.h>
 
 using namespace std::literals;
 
@@ -113,8 +114,8 @@ void ImagingPlatform::on_pushButton_live_clicked()
 {
 	// if the camera is not registered, create it at first
 	if (!m_camera) {
-		m_camera = std::make_unique<DemoCam>();
-		//m_camera = std::make_unique<TUCam>(0);
+		//m_camera = std::make_unique<DemoCam>();
+		m_camera = std::make_unique<TUCam>(0);
 	}
 
 	if (m_camera->getState() == DeviceState::NOTREGISTER) {
@@ -131,15 +132,27 @@ void ImagingPlatform::on_pushButton_live_clicked()
 	qDebug() << "start living......";
 
 	std::thread thread_living([this] {
+		// QImage image 
+		// QPixmap pixmap
 		while (m_running) {
 			while (m_camera->isCapturing()) {
 				const uchar* data = m_camera->getCircularBufferTop();
+#ifndef _DEBUG
+				printf("get Top : %p\n", data);
+#endif // !_DEBUG
 				QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(),
 					m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
 				QPixmap pixmap = QPixmap::fromImage(image.scaled(900, 600));
-				m_viewer->setPixmap(pixmap);
 
-				emit updateViewer();
+#ifndef _DEBUG
+				printf("construct pixmap %d %d\n", pixmap.width(), pixmap.height());
+#endif // !_DEBUG
+
+
+
+				//m_viewer->setPixmap(pixmap);
+
+				emit updateViewer(pixmap);
 			}
 		}
 	});
@@ -269,9 +282,9 @@ void ImagingPlatform::on_updateZPosition()
 	ui->label_ZPosition->setText(QString::number(ZPos));
 }
 
-void ImagingPlatform::on_updateViewer()
+void ImagingPlatform::on_updateViewer(QPixmap pixmap)
 {
-	m_viewer->update();
+	m_viewer->display(pixmap);
 }
 
 void ImagingPlatform::on_pushButton_XYScan_clicked()
@@ -423,7 +436,7 @@ void ImagingPlatform::on_enableXYScan()
 void ImagingPlatform::on_addFOV(const QPoint& point, const QImage& image, int r, int c)
 {
 	PreviewItem* item = new PreviewItem(point);
-	item->setPixmap(QPixmap::fromImage(image.scaled(450, 300)));
+	item->setPixmap(QPixmap::fromImage(image.scaled(150, 100)));
 	m_previewer->addPreviewItem(item, r, c);
 }
 

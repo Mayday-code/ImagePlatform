@@ -1,6 +1,8 @@
 #pragma once
 
-enum class DeviceState {
-	NOTREGISTER = 0,
-	REGISTER = 1,
+enum class CameraState
+{
+	OFFLINE = 1,
+	ONLINE = 2,
+	LIVING = 3,
 };

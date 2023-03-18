@@ -26,7 +26,7 @@ public:
 signals:
 	void updateXYPosition();
 	void updateZPosition();
-	void updateViewer();
+	void updateViewer(QPixmap pixmap);
 	void enableXYScan();
 	void addFOV(const QPoint& point, const QImage& image, int r, int c);
 	void showPreviewer();
@@ -70,7 +70,7 @@ private slots:
 	void on_updateZPosition(); 
 
 	//viewer slot
-	void on_updateViewer();
+	void on_updateViewer(QPixmap pixmap);
 
 	//function slots
 	void on_pushButton_XYScan_clicked();
