@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Camera.h"
-#include "TUCamApi.h"
+#include "dcamapi4.h"
 
-class TUCam : public Camera
+class HamCam : public Camera
 {
 public:
-	TUCam();
-	~TUCam();
+	HamCam();
+	~HamCam();
 
 private:
 	virtual bool init() override;
@@ -18,8 +18,10 @@ private:
 
 	void stopCap();
 private:
-	HDTUCAM m_handle = nullptr;
-	TUCAM_INIT m_itApi;       // SDK API initialized object
-	TUCAM_OPEN m_opCam;       // Open camera object
-	TUCAM_FRAME m_frame;      // The frame object
+	HDCAM m_hdcam;
+	HDCAMWAIT m_hwait;
+	DCAMWAIT_START m_waitstart;
+	DCAMBUF_FRAME m_bufframe;
+	DCAMWAIT_OPEN m_waitopen;
+	DCAMDEV_OPEN m_devopen;
 };

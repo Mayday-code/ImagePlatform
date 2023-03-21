@@ -1,10 +1,12 @@
 #pragma once
 
 #include <mutex>
-#include <cstring>
+#include <iostream>
 #include <atomic>
 #include "CircularBuffer.h"
 #include "MyDefine.h"
+
+using namespace std::literals;
 
 /*!
  * \class Camera
@@ -39,9 +41,19 @@ protected:
 	virtual bool open() = 0;
 
 	/*!
-	 * \brief 打开相机
+	 * \brief 开始采集
 	 */
-	virtual bool open() = 0;
+	virtual bool startCapturing() = 0;
+
+	/*!
+	 * \brief 设置曝光，单位为毫秒。需要先设置曝光值，再查询真实值
+	 */
+	virtual bool setDeviceExp(double exp_ms) = 0;
+
+	/*!
+	 * \brief 设置设备的ROI，这个函数需要负责同步相机真实宽高和相机类的m_width、m_height成员
+	 */
+	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) = 0;
 
 public:
 	virtual ~Camera() = default;
@@ -50,17 +62,82 @@ public:
 	 * \brief Set exposure in milliseconds.
 	 * \param exp_ms exposure in milliseconds
 	 */
-	virtual void setExposure(double exp_ms) = 0;
+	void setExposure(double exp_ms) {
+		if (getState() == CameraState::OFFLINE) {
+			std::cout << "相机未连接" << std::endl;
+			return;
+		}
+
+		bool isContinue = false;
+		if (getState() == CameraState::LIVING) {
+			isContinue = true;
+			stopSequenceAcquisition();
+		}
+
+		std::cout << "设置曝光时间：" << exp_ms << "ms" << std::endl;
+
+		if (!setDeviceExp(exp_ms)) {
+			std::cout << "设置曝光失败" << std::endl;
+			//设置失败的话要再查询当前的属性值，然后同步到UI
+		}
+
+		if (isContinue) {
+			startSequenceAcquisition();
+		}
+	}
 
 	/*!
 	 * \brief Sets the camera Region Of Interest.
 	 */
-	virtual void setROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) = 0;
+	void setROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) {
+		if (getState() == CameraState::OFFLINE) {
+			std::cout << "相机未连接" << std::endl;
+			return;
+		}
+
+		bool isContinue = false;
+		if (getState() == CameraState::LIVING) {
+			isContinue = true;
+			stopSequenceAcquisition();
+		}
+
+		std::cout << "设置ROI:\n"
+			"	hPOs: " << hPos << "\n"
+			"	vPos: " << vPos << "\n"
+			"	hSize: " << hSize << "\n"
+			"	vSize: " << vSize << std::endl;
+
+		if (!setDeviceROI(hPos, vPos, hSize, vSize)) {
+			std::cout << "设置ROI失败" << std::endl;
+			//设置失败的话要再查询当前的属性值，然后同步到UI
+		}
+		else {
+			m_width = hSize;
+			m_height = vSize;
+		}
+
+		if (isContinue) {
+			startSequenceAcquisition();
+		}
+	}
 
 	/*!
 	 * \brief Start Sequence Acquisition.
 	 */
-	virtual void startSequenceAcquisition() = 0;
+	void startSequenceAcquisition() {
+		if (getState() == CameraState::OFFLINE) {
+			std::cout << "相机未连接" << std::endl;
+			return;
+		}
+
+		if (getState() == CameraState::LIVING) {
+			return;
+		}
+
+		std::cout << "开始采图" << std::endl;
+
+		startCapturing();
+	}
 
 	/*!
 	 * \brief Get image width - size in pixels.
@@ -106,6 +183,10 @@ public:
 	 * \brief Stop an ongoing sequence acquisition.
 	 */
 	void stopSequenceAcquisition() {
+		if (getState() == CameraState::OFFLINE) {
+			std::cout << "相机未连接" << std::endl;
+			return;
+		}
 		std::unique_lock<std::mutex> lck(m_stateMutex);
 		m_state = CameraState::ONLINE;
 		lck.unlock();
@@ -121,12 +202,12 @@ public:
 	/*!
 	 * \brief Return Buffer Top.
 	 */
-	ImgBuffer* getTopBuffer() { return m_cbuf.GetTopImageBuffer(); }
+	ImgBuffer* getTopBuffer() { return m_cbuf.getTopImageBuffer(); }
 
 	/*!
 	 * \brief 返回缓冲队列中的最后一帧
 	 */
-	ImgBuffer* getNextBuffer() { return m_cbuf.GetNextImageBuffer(); }
+	ImgBuffer* getNextBuffer() { return m_cbuf.getNextImageBuffer(); }
 
 	/*!
 	 * \brief 可在测试时使用，用于分析缓冲队列队头队尾的情况
@@ -141,12 +222,12 @@ public:
 	/*!
 	 * \brief 清空缓冲区
 	 */
-	void clearCircularBuffer() { m_cbuf.Clear(); }
+	void clearCircularBuffer() { m_cbuf.clear(); }
 
 	/*!
 	 * \brief 返回缓冲区生命周期内累计插入图像数量
 	 */
-	unsigned long long getCircularBufferImageCount() const { return m_cbuf.GetImageCounter(); }
+	unsigned long long getCircularBufferImageCount() const { return m_cbuf.getImageCounter(); }
 
 	//Sets the camera subarray
 	//virtual void SetSubArray(unsigned xSize, unsigned ySize) = 0;

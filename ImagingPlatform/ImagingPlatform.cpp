@@ -148,8 +148,6 @@ void ImagingPlatform::on_pushButton_live_clicked()
 				printf("construct pixmap %d %d\n", pixmap.width(), pixmap.height());
 #endif // !_DEBUG
 
-
-
 				//m_viewer->setPixmap(pixmap);
 
 				emit updateViewer(pixmap);

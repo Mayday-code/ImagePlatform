@@ -8,47 +8,47 @@ constexpr long adjustThreshold = LONG_MAX / 2;
 constexpr unsigned long maxCBSize = 10000000;
 
 CircularBuffer::CircularBuffer(unsigned int memorySizeMB) :
-	width_(0),
-	height_(0),
-	pixDepth_(0),
-	numChannels_(0),
-	imageCounter_(0),
-	insertIndex_(0),
-	saveIndex_(0),
-	memorySizeMB_(memorySizeMB)
+	m_width(0),
+	m_height(0),
+	m_pixDepth(0),
+	m_numChannels(0),
+	m_imageCounter(0),
+	m_insertIndex(0),
+	m_saveIndex(0),
+	m_memorySizeMB(memorySizeMB)
 {
 }
 
-bool CircularBuffer::Initialize(unsigned channels, unsigned int w, unsigned int h, unsigned int pixDepth)
+bool CircularBuffer::initialize(unsigned channels, unsigned int w, unsigned int h, unsigned int pixDepth)
 {
-	std::lock_guard<std::mutex> lck(bufferMutex_);
+	std::lock_guard<std::mutex> lck(m_bufferMutex);
 
 	bool ret = true;
 	try {
 		if (w == 0 || h == 0 || pixDepth == 0 || channels == 0)
 			return false; // does not make sense
 
-		if (w == width_ && height_ == h && pixDepth_ == pixDepth && channels == numChannels_)
-			if (frameArray_.size() > 0)
+		if (w == m_width && m_height == h && m_pixDepth == pixDepth && channels == m_numChannels)
+			if (m_frameArray.size() > 0)
 				return true; // nothing to change
 
-		width_ = w;
-		height_ = h;
-		pixDepth_ = pixDepth;
-		numChannels_ = channels;
+		m_width = w;
+		m_height = h;
+		m_pixDepth = pixDepth;
+		m_numChannels = channels;
 
-		insertIndex_ = 0;
-		saveIndex_ = 0;
+		m_insertIndex = 0;
+		m_saveIndex = 0;
 		//overflow_ = false;
 
 		// calculate the size of the entire buffer array once all images get allocated
 		// the actual size at the time of the creation is going to be less, because
 		// images are not allocated until pixels become available
-		unsigned long frameSizeBytes = width_ * height_ * pixDepth_ * numChannels_;
-		unsigned long cbSize = (unsigned long)((memorySizeMB_ * bytesInMB) / frameSizeBytes);
+		unsigned long frameSizeBytes = m_width * m_height * m_pixDepth * m_numChannels;
+		unsigned long cbSize = (unsigned long)((m_memorySizeMB * bytesInMB) / frameSizeBytes);
 
 		if (cbSize == 0) {
-			frameArray_.resize(0);
+			m_frameArray.resize(0);
 			return false; // memory footprint too small
 		}
 
@@ -58,98 +58,98 @@ bool CircularBuffer::Initialize(unsigned channels, unsigned int w, unsigned int 
 
 		// TODO: verify if we have enough RAM to satisfy this request
 		// allocate buffers  - could conceivably throw an out-of-memory exception
-		frameArray_.resize(cbSize);
-		for (unsigned long i = 0; i < frameArray_.size(); i++) {
-			frameArray_[i].Resize(w, h, pixDepth, channels);
+		m_frameArray.resize(cbSize);
+		for (unsigned long i = 0; i < m_frameArray.size(); i++) {
+			m_frameArray[i].resize(w, h, pixDepth, channels);
 		}
 	}
 	catch (... /* std::bad_alloc& ex */) {
-		frameArray_.resize(0);
+		m_frameArray.resize(0);
 		ret = false;
 	}
 	return ret;
 }
 
-void CircularBuffer::Clear()
+void CircularBuffer::clear()
 {
-	std::lock_guard<std::mutex> lck(bufferMutex_);
-	imageCounter_ = 0;
-	insertIndex_ = 0;
-	saveIndex_ = 0;
+	std::lock_guard<std::mutex> lck(m_bufferMutex);
+	m_imageCounter = 0;
+	m_insertIndex = 0;
+	m_saveIndex = 0;
 }
 
-unsigned long CircularBuffer::GetSize() const
+unsigned long CircularBuffer::getSize() const
 {
-	std::lock_guard<std::mutex> lck(bufferMutex_);
-	return (unsigned long)frameArray_.size();
+	std::lock_guard<std::mutex> lck(m_bufferMutex);
+	return (unsigned long)m_frameArray.size();
 }
 
-unsigned long CircularBuffer::GetFreeSize() const
+unsigned long CircularBuffer::getFreeSize() const
 {
-	std::lock_guard<std::mutex> lck(bufferMutex_);
-	long freeSize = (long)frameArray_.size() - (insertIndex_ - saveIndex_);
+	std::lock_guard<std::mutex> lck(m_bufferMutex);
+	long freeSize = (long)m_frameArray.size() - (m_insertIndex - m_saveIndex);
 	if (freeSize < 0)
 		return 0;
 	else
 		return (unsigned long)freeSize;
 }
 
-unsigned long CircularBuffer::GetRemainingImageCount() const
+unsigned long CircularBuffer::getRemainingImageCount() const
 {
-	std::lock_guard<std::mutex> lck(bufferMutex_);
-	return (unsigned long)(insertIndex_ - saveIndex_);
+	std::lock_guard<std::mutex> lck(m_bufferMutex);
+	return (unsigned long)(m_insertIndex - m_saveIndex);
 }
 
 
 // 利用get和insert的天然互斥性，不需要条件变量，也不管队尾指向哪一帧，直接返回队头，但有可能使一帧显示多次？
-ImgBuffer* CircularBuffer::GetTopImageBuffer()
+ImgBuffer* CircularBuffer::getTopImageBuffer()
 {
-	std::unique_lock<std::mutex> lck(bufferMutex_);
-	bufferAvailable_.wait(lck, [this] {
-		return insertIndex_ > 0;
+	std::unique_lock<std::mutex> lck(m_bufferMutex);
+	m_bufferAvailable.wait(lck, [this] {
+		return m_insertIndex > 0;
 		});
 
-	long targetIndex = insertIndex_ - 1L;
+	long targetIndex = m_insertIndex - 1L;
 	while (targetIndex < 0)
-		targetIndex += (long)frameArray_.size();
-	targetIndex %= frameArray_.size();
+		targetIndex += (long)m_frameArray.size();
+	targetIndex %= m_frameArray.size();
 
-	return &frameArray_[targetIndex];
+	return &m_frameArray[targetIndex];
 }
 
-ImgBuffer* CircularBuffer::GetNextImageBuffer()
+ImgBuffer* CircularBuffer::getNextImageBuffer()
 {
-	std::unique_lock<std::mutex> lck(bufferMutex_);
-	bufferAvailable_.wait(lck, [this] {
-		return insertIndex_ - saveIndex_ > 0;
+	std::unique_lock<std::mutex> lck(m_bufferMutex);
+	m_bufferAvailable.wait(lck, [this] {
+		return m_insertIndex - m_saveIndex > 0;
 		});
 
-	return &frameArray_[saveIndex_++ % frameArray_.size()];
+	return &m_frameArray[m_saveIndex++ % m_frameArray.size()];
 }
 
-bool CircularBuffer::InsertImage(const unsigned char* pixArray, unsigned int width, unsigned int height)
+bool CircularBuffer::insertImage(const unsigned char* pixArray, unsigned int width, unsigned int height)
 {
-	std::unique_lock<std::mutex> lck(bufferMutex_);
+	std::unique_lock<std::mutex> lck(m_bufferMutex);
 
-	if (width != width_ || height != height_) {
+	if (width != m_width || height != m_height) {
 		lck.unlock();
-		Initialize(numChannels_, width, height, pixDepth_);
+		initialize(m_numChannels, width, height, m_pixDepth);
 		lck.lock();
 	}
 
-	ImgBuffer* pimg = &frameArray_[insertIndex_ % frameArray_.size()];
-	pimg->SetPixels(pixArray);
+	ImgBuffer* pimg = &m_frameArray[m_insertIndex % m_frameArray.size()];
+	pimg->setPixels(pixArray);
 
-	imageCounter_++;
-	insertIndex_++;
-	if ((insertIndex_ - (long)frameArray_.size()) > adjustThreshold && (saveIndex_ - (long)frameArray_.size()) > adjustThreshold)
+	m_imageCounter++;
+	m_insertIndex++;
+	if ((m_insertIndex - (long)m_frameArray.size()) > adjustThreshold && (m_saveIndex - (long)m_frameArray.size()) > adjustThreshold)
 	{
 		// adjust buffer indices to avoid overflowing integer size
-		insertIndex_ -= adjustThreshold;
-		saveIndex_ -= adjustThreshold;
+		m_insertIndex -= adjustThreshold;
+		m_saveIndex -= adjustThreshold;
 	}
 
-	bufferAvailable_.notify_all();
+	m_bufferAvailable.notify_all();
 	return true;
 }
 

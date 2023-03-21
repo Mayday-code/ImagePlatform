@@ -70,6 +70,9 @@
     <ClCompile Include="Previewer.cpp">
       <Filter>Widgets</Filter>
     </ClCompile>
+    <ClCompile Include="HamCam.cpp">
+      <Filter>Camera</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Stage.h">
@@ -98,6 +101,9 @@
     </ClInclude>
     <ClInclude Include="DemoStage.h">
       <Filter>Stage</Filter>
+    </ClInclude>
+    <ClInclude Include="HamCam.h">
+      <Filter>Camera</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
