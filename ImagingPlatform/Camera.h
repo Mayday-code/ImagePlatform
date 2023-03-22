@@ -21,6 +21,8 @@ protected:
 	//unsigned roiX_;
 	//unsigned roiY_;
 	double m_exp = 0;
+	unsigned m_hPos = 0;
+	unsigned m_vPos = 0;
 	unsigned m_width = 0;
 	unsigned m_height = 0;
 	unsigned m_channel = 0;
@@ -51,12 +53,18 @@ protected:
 	virtual bool setDeviceExp(double exp_ms) = 0;
 
 	/*!
-	 * \brief 设置设备的ROI，这个函数需要负责同步相机真实宽高和相机类的m_width、m_height成员
+	 * \brief 设置设备的ROI，这个函数还需要负责同步相机真实宽高、hPos、vPos和
+	 * 相机类的m_width、m_height、m_hPos、m_vPos属性成员
 	 */
 	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) = 0;
 
 public:
 	virtual ~Camera() = default;
+
+	/*!
+	 * \brief 相机是否支持分辨率切换
+	 */
+	virtual bool isSupportResolutionSwitching() const = 0;
 
 	/*!
 	 * \brief Set exposure in milliseconds.
@@ -149,6 +157,10 @@ public:
 	 */
 	unsigned getImageHeight() const { return m_height; }
 
+	unsigned getHPos() const { return m_hPos; }
+
+	unsigned getVPos() const { return m_vPos; }
+
 	//Gets the size of ROI
 	//virtual unsigned GetWidgetWidth() = 0;
 	//Returns image buffer Y - size in pixels.
@@ -190,7 +202,7 @@ public:
 		std::unique_lock<std::mutex> lck(m_stateMutex);
 		m_state = CameraState::ONLINE;
 		lck.unlock();
-		std::this_thread::sleep_for(200ms);
+		std::this_thread::sleep_for(50ms);
 	}
 
 	/*!

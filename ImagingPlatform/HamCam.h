@@ -9,6 +9,8 @@ public:
 	HamCam();
 	~HamCam();
 
+	virtual bool isSupportResolutionSwitching() const { return false; }
+
 private:
 	virtual bool init() override;
 	virtual bool open() override;

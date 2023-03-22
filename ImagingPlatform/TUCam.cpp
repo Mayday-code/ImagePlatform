@@ -15,13 +15,9 @@ TUCam::TUCam()
 	m_state = CameraState::ONLINE;
 
 	//初始设置要与界面的显示同步
-	//测试鑫图相机的各个ROI选项
-	//setROI(0, 0, 900, 600);
+	setROI(0, 0, 1824, 1216);
 	setExposure(200);
 
-	//鑫图相机目前没有实现setDeviceROI()函数，这里暂时需要手动设置
-	m_height = 1216;
-	m_width = 1824;
 	m_pixDepth = 1;
 	m_channel = 3;
 
@@ -47,18 +43,16 @@ TUCam::TUCam()
 	}
 
 	TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 2);
+	TUCAM_Capa_SetValue(m_handle, TUIDC_VERTICAL, 1);
 
 	std::cout << "相机连接成功" << std::endl;
 }
 
 TUCam::~TUCam()
 {
-	if (nullptr != m_handle) {
-		stopCap();
-		TUCAM_Dev_Close(m_handle);
-	}
+	stopSequenceAcquisition();
+	TUCAM_Dev_Close(m_handle);
 	printf("与相机断开连接\n");
-
 	TUCAM_Api_Uninit();
 }
 
@@ -132,6 +126,7 @@ bool TUCam::startCapturing()
 bool TUCam::setDeviceExp(double exp_ms)
 {
 	TUCAMRET ret = TUCAM_Prop_SetValue(m_handle, TUIDP_EXPOSURETM, exp_ms);
+	TUCAM_Prop_GetValue(m_handle, TUIDP_EXPOSURETM, &m_exp);
 	if (ret != TUCAMRET_SUCCESS) {
 		printf("设置曝光出错!!!错误代码: %x\n", ret);
 		return false;
@@ -141,8 +136,30 @@ bool TUCam::setDeviceExp(double exp_ms)
 
 bool TUCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize)
 {
-	printf("未实现此功能\n");
-	return false;
+	TUCAM_ROI_ATTR roiAttr;
+	roiAttr.bEnable = TRUE;
+	roiAttr.nVOffset = vPos;
+	roiAttr.nHOffset = hPos;
+	roiAttr.nWidth = hSize;
+	roiAttr.nHeight = vSize;
+	
+	auto ret = TUCAM_Cap_SetROI(m_opCam.hIdxTUCam, roiAttr);
+
+	TUCAM_ROI_ATTR getROI;
+	getROI.bEnable = TRUE;
+	TUCAM_Cap_GetROI(m_handle, &getROI);
+
+	m_vPos = getROI.nVOffset;
+	m_hPos = getROI.nHOffset;
+	m_width = getROI.nWidth;
+	m_height = getROI.nHeight;
+
+	if (TUCAMRET_SUCCESS != ret) {
+		printf("设置ROI出错!!!错误代码: %x\n", ret);
+		return false;
+	}
+
+	return true;
 }
 
 void TUCam::stopCap()

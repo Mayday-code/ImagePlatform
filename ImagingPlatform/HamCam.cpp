@@ -24,6 +24,7 @@ HamCam::HamCam()
 
 HamCam::~HamCam()
 {
+	stopSequenceAcquisition();
 	dcamdev_close(m_hdcam);
 	printf("与相机断开连接\n");
 	dcamapi_uninit();
@@ -148,33 +149,42 @@ bool HamCam::setDeviceExp(double exp_ms)
 
 bool HamCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize)
 {
+	double tmp_hPos = hPos;
+	double tmp_vPos = vPos;
+	double tmp_width = hSize;
+	double tmp_height = vSize;
+
 	DCAMERR err;
 	bool isOk = true;
 	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYMODE, DCAMPROP_MODE__OFF);
 	if (failed(err)) { isOk = false; }
 
-	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHPOS, hPos);
+	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHPOS, &tmp_hPos);
 	if (failed(err)) { isOk = false; }
 
-	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVPOS, vPos);
+	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVPOS, &tmp_vPos);
 	if (failed(err)) { isOk = false; }
 
-	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHSIZE, hSize);
+	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHSIZE, &tmp_width);
 	if (failed(err)) { isOk = false; }
 
-	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVSIZE, vSize);
+	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVSIZE, &tmp_height);
 	if (failed(err)) { isOk = false; }
 
 	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYMODE, DCAMPROP_MODE__ON);
 	if (failed(err)) { isOk = false; }
 
+	m_hPos = tmp_hPos;
+	m_vPos = tmp_vPos;
+	m_width = tmp_width;
+	m_height = tmp_height;
+
 	if (!isOk) {
-		std::cout << "ROI设置失败" << std::endl;
+		printf("设置ROI出错!!!错误代码: %x\n", err);
 		return;
 	}
 
-	m_width = hSize;
-	m_height = vSize;
+	return true;
 }
 
 void HamCam::stopCap()

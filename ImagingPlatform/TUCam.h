@@ -9,6 +9,8 @@ public:
 	TUCam();
 	~TUCam();
 
+	virtual bool isSupportResolutionSwitching() const { return true; }
+
 private:
 	virtual bool init() override;
 	virtual bool open() override;
