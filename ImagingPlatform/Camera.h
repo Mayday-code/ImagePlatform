@@ -53,8 +53,8 @@ protected:
 	virtual bool setDeviceExp(double exp_ms) = 0;
 
 	/*!
-	 * \brief 设置设备的ROI，这个函数还需要负责同步相机真实宽高、hPos、vPos和
-	 * 相机类的m_width、m_height、m_hPos、m_vPos属性成员
+	 * \brief 设置设备的ROI，并且在设置之后再查询设备实际ROI，同步到相机类
+	 * 的m_width、m_height、m_hPos、m_vPos属性成员
 	 */
 	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) = 0;
 
@@ -84,10 +84,7 @@ public:
 
 		std::cout << "设置曝光时间：" << exp_ms << "ms" << std::endl;
 
-		if (!setDeviceExp(exp_ms)) {
-			std::cout << "设置曝光失败" << std::endl;
-			//设置失败的话要再查询当前的属性值，然后同步到UI
-		}
+		setDeviceExp(exp_ms);
 
 		if (isContinue) {
 			startSequenceAcquisition();
@@ -115,14 +112,7 @@ public:
 			"	hSize: " << hSize << "\n"
 			"	vSize: " << vSize << std::endl;
 
-		if (!setDeviceROI(hPos, vPos, hSize, vSize)) {
-			std::cout << "设置ROI失败" << std::endl;
-			//设置失败的话要再查询当前的属性值，然后同步到UI
-		}
-		else {
-			m_width = hSize;
-			m_height = vSize;
-		}
+		setDeviceROI(hPos, vPos, hSize, vSize);
 
 		if (isContinue) {
 			startSequenceAcquisition();
@@ -202,7 +192,7 @@ public:
 		std::unique_lock<std::mutex> lck(m_stateMutex);
 		m_state = CameraState::ONLINE;
 		lck.unlock();
-		std::this_thread::sleep_for(50ms);
+		std::this_thread::sleep_for(200ms);
 	}
 
 	/*!

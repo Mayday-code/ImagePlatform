@@ -33,6 +33,9 @@
     <Filter Include="Widgets">
       <UniqueIdentifier>{a383950b-3a68-439a-a571-38bcdabfc703}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Log">
+      <UniqueIdentifier>{5f731739-7afc-4484-a16c-106a0f91011f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="ImagingPlatform.qrc">

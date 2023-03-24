@@ -14,7 +14,7 @@ TUCam::TUCam()
 
 	m_state = CameraState::ONLINE;
 
-	//åˆå§‹è®¾ç½®è¦ä¸ç•Œé¢çš„æ˜¾ç¤ºåŒæ­¥
+	//³õÊ¼ÉèÖÃÒªÓë½çÃæµÄÏÔÊ¾Í¬²½
 	setROI(0, 0, 1824, 1216);
 	setExposure(200);
 
@@ -22,8 +22,6 @@ TUCam::TUCam()
 	m_channel = 3;
 
 	m_cbuf.initialize(m_channel, m_width, m_height, m_pixDepth);
-
-	m_handle = m_opCam.hIdxTUCam;
 
 	TUCAM_PROP_ATTR attrProp;
 	attrProp.nIdxChn = 0;    // Current channel 
@@ -45,14 +43,14 @@ TUCam::TUCam()
 	TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 2);
 	TUCAM_Capa_SetValue(m_handle, TUIDC_VERTICAL, 1);
 
-	std::cout << "ç›¸æœºè¿æ¥æˆåŠŸ" << std::endl;
+	std::cout << "Ïà»úÁ¬½Ó³É¹¦" << std::endl;
 }
 
 TUCam::~TUCam()
 {
 	stopSequenceAcquisition();
 	TUCAM_Dev_Close(m_handle);
-	printf("ä¸ç›¸æœºæ–­å¼€è¿æ¥\n");
+	printf("ÓëÏà»ú¶Ï¿ªÁ¬½Ó\n");
 	TUCAM_Api_Uninit();
 }
 
@@ -66,11 +64,13 @@ bool TUCam::init()
 
 	auto ret = TUCAM_Api_Init(&m_itApi);
 	if (TUCAMRET_SUCCESS != ret) {
-		printf("åˆå§‹åŒ–å‡ºé”™!!!é”™è¯¯ä»£ç : %x\n", ret);
+		std::cout << "³õÊ¼»¯³ö´í!!!´íÎó´úÂë: " << std::hex << ret << std::endl;
 		return false;
 	}
 
-	printf("æ£€æµ‹åˆ° %d å°ç›¸æœº\n", m_itApi.uiCamCount);
+	// Ò»¿ªÊ¼printf()»á½«Êı¾İ´æÈëIO»º³åÇø£¬ÓÉÓÚÊÇĞĞ»º³å£¬
+	// ĞĞ»º³åµÄÌØµãÊÇÓöµ½\nÊ±»áÁ¢Âí½«C»º³åÇøµÄÄÚÈİË¢ĞÂµ½ÄÚºË»º³åÇø
+	printf("¼ì²âµ½ %d Ì¨Ïà»ú\n", m_itApi.uiCamCount);
 	return true;
 }
 
@@ -79,9 +79,10 @@ bool TUCam::open()
 	m_opCam.uiIdxOpen = 0;
 	auto ret = TUCAM_Dev_Open(&m_opCam);
 	if (TUCAMRET_SUCCESS != ret) {
-		printf("æ‰“å¼€ç›¸æœºå‡ºé”™!!!é”™è¯¯ä»£ç : %x\n", ret);
+		printf("´ò¿ªÏà»ú³ö´í!!!´íÎó´úÂë: %x\n", ret);
 		return false;
 	}
+	m_handle = m_opCam.hIdxTUCam;
 	return true;
 }
 
@@ -95,7 +96,7 @@ bool TUCam::startCapturing()
 
 	auto ret = TUCAM_Cap_Start(m_opCam.hIdxTUCam, (UINT32)TUCCM_SEQUENCE);
 	if (TUCAMRET_SUCCESS != ret) {
-		printf("æ— æ³•å¯åŠ¨é‡‡é›†!!!é”™è¯¯ä»£ç : %x\n", ret);
+		printf("ÎŞ·¨Æô¶¯²É¼¯!!!´íÎó´úÂë: %x\n", ret);
 		return false;
 	}
 
@@ -107,17 +108,13 @@ bool TUCam::startCapturing()
 			auto ret = TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame);
 			if (TUCAMRET_SUCCESS == ret) {
 				m_cbuf.insertImage(m_frame.pBuffer + m_frame.usOffset, m_frame.usWidth, m_frame.usHeight);
-#ifndef _DEBUG
-				static unsigned index = 0;
-				std::cout << "inserted " << index++ << std::endl;
-#endif // !_DEBUG
 			} else {
-				printf("æŠ“å–å¸§å‡ºé”™!!!é”™è¯¯ä»£ç : %x\n", ret);
+				printf("×¥È¡Ö¡³ö´í!!!´íÎó´úÂë: %x\n", ret);
 			}
 		}
-		std::cout << "é€€å‡ºé‡‡å›¾" << std::endl;
+		printf("ÍË³ö²ÉÍ¼\n");
 
-		// å°†ç›¸æœºé‡‡é›†çœŸæ­£åœæ­¢
+		// ½«Ïà»ú²É¼¯ÕæÕıÍ£Ö¹
 		stopCap();
 	});
 	thread_capture.detach();
@@ -128,7 +125,7 @@ bool TUCam::setDeviceExp(double exp_ms)
 	TUCAMRET ret = TUCAM_Prop_SetValue(m_handle, TUIDP_EXPOSURETM, exp_ms);
 	TUCAM_Prop_GetValue(m_handle, TUIDP_EXPOSURETM, &m_exp);
 	if (ret != TUCAMRET_SUCCESS) {
-		printf("è®¾ç½®æ›å…‰å‡ºé”™!!!é”™è¯¯ä»£ç : %x\n", ret);
+		printf("ÉèÖÃÆØ¹â³ö´í!!!´íÎó´úÂë: %x\n", ret);
 		return false;
 	}
 	return true;
@@ -155,7 +152,7 @@ bool TUCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned 
 	m_height = getROI.nHeight;
 
 	if (TUCAMRET_SUCCESS != ret) {
-		printf("è®¾ç½®ROIå‡ºé”™!!!é”™è¯¯ä»£ç : %x\n", ret);
+		printf("ÉèÖÃROI³ö´í!!!´íÎó´úÂë: %x\n", ret);
 		return false;
 	}
 

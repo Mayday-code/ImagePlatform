@@ -17,8 +17,6 @@ HamCam::HamCam()
 
 	m_cbuf.initialize(m_channel, m_width, m_height, m_pixDepth);
 
-	m_hdcam = m_devopen.hdcam;
-
 	std::cout << "相机连接成功" << std::endl;
 }
 
@@ -52,9 +50,10 @@ bool HamCam::open()
 	m_devopen.index = 0;
 	DCAMERR err = dcamdev_open(&m_devopen);
 	if (failed(err)) {
-		printf("打开相机出错!!!错误代码: %x\n", err);
+		std::cout << u8"打开相机出错!!!错误代码: " << std::hex << err << std::dec << std::endl;
 		return false;
 	}
+	m_hdcam = m_devopen.hdcam;
 	return true;
 }
 
@@ -67,26 +66,26 @@ bool HamCam::startCapturing()
 	err = dcamwait_open(&m_waitopen);
 	if (failed(err)) {
 		printf("wait_open出错!!!错误代码: %x\n", err);
-		return;
+		return false;
 	}
 	m_hwait = m_waitopen.hwait;
 
 	err = dcambuf_release(m_hdcam);
 	if (failed(err)) {
 		printf("释放缓冲区出错!!!错误代码: %x\n", err);
-		return;
+		return false;
 	}
 
 	err = dcambuf_alloc(m_hdcam, 10);
 	if (failed(err)) {
 		printf("分配缓冲区出错!!!错误代码: %x\n", err);
-		return;
+		return false;
 	}
 
 	err = dcamcap_start(m_hdcam, DCAMCAP_START_SEQUENCE);
 	if (failed(err)) {
 		printf("无法启动采集!!!错误代码: %x\n", err);
-		return;
+		return false;
 	}
 
 	//waitstart
@@ -140,7 +139,7 @@ bool HamCam::setDeviceExp(double exp_ms)
 	//滨松相机提供的api需要将参数设置为以μm为单位
 	DCAMERR err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_EXPOSURETIME, &m_exp);
 	if (failed(err)) {
-		std::cout << "设置曝光失败" << std::endl;
+		printf("设置曝光失败!!!错误代码: %x\n", err);
 		return false;
 	}
 	m_exp *= 1000;
@@ -149,30 +148,41 @@ bool HamCam::setDeviceExp(double exp_ms)
 
 bool HamCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize)
 {
-	double tmp_hPos = hPos;
-	double tmp_vPos = vPos;
-	double tmp_width = hSize;
-	double tmp_height = vSize;
-
 	DCAMERR err;
 	bool isOk = true;
 	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYMODE, DCAMPROP_MODE__OFF);
-	if (failed(err)) { isOk = false; }
+	if (failed(err)) { isOk = false; printf("%u_设置ROI出错!!!错误代码: %x\n", __LINE__, err);
+	}
 
-	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHPOS, &tmp_hPos);
-	if (failed(err)) { isOk = false; }
+	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHPOS, hPos);
+	if (failed(err)) { isOk = false; printf("%u_设置ROI出错!!!错误代码: %x\n", __LINE__, err);
+	}
 
-	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVPOS, &tmp_vPos);
-	if (failed(err)) { isOk = false; }
+	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVPOS, vPos);
+	if (failed(err)) { isOk = false; printf("%u_设置ROI出错!!!错误代码: %x\n", __LINE__, err);
+	}
 
-	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHSIZE, &tmp_width);
-	if (failed(err)) { isOk = false; }
+	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHSIZE, hSize);
+	if (failed(err)) { isOk = false; printf("%u_设置ROI出错!!!错误代码: %x\n", __LINE__, err);
+	}
 
-	err = dcamprop_setgetvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVSIZE, &tmp_height);
-	if (failed(err)) { isOk = false; }
+	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVSIZE, vSize);
+	if (failed(err)) { isOk = false; printf("%u_设置ROI出错!!!错误代码: %x\n", __LINE__, err);
+	}
 
 	err = dcamprop_setvalue(m_hdcam, DCAM_IDPROP_SUBARRAYMODE, DCAMPROP_MODE__ON);
-	if (failed(err)) { isOk = false; }
+	if (failed(err)) { isOk = false; printf("%u_设置ROI出错!!!错误代码: %x\n", __LINE__, err);
+	}
+
+	double tmp_hPos;
+	double tmp_vPos;
+	double tmp_width;
+	double tmp_height;
+
+	err = dcamprop_getvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHPOS, &tmp_hPos);
+	err = dcamprop_getvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVPOS, &tmp_vPos);
+	err = dcamprop_getvalue(m_hdcam, DCAM_IDPROP_SUBARRAYHSIZE, &tmp_width);
+	err = dcamprop_getvalue(m_hdcam, DCAM_IDPROP_SUBARRAYVSIZE, &tmp_height);
 
 	m_hPos = tmp_hPos;
 	m_vPos = tmp_vPos;
@@ -181,7 +191,7 @@ bool HamCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned
 
 	if (!isOk) {
 		printf("设置ROI出错!!!错误代码: %x\n", err);
-		return;
+		return false;
 	}
 
 	return true;

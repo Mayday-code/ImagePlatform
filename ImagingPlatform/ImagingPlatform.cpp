@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <core.hpp>
 
-
 using namespace std::literals;
 
 ImagingPlatform::ImagingPlatform(QWidget *parent): 
@@ -43,7 +42,7 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 	}
 
 	// 加载串口信息
-	qDebug("正在搜索串口...");
+	qDebug(u8"正在搜索串口...");
 	for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts()) {
 		qDebug() << "Name        : " << info.portName();
 		qDebug() << "Description : " << info.description();
@@ -57,7 +56,6 @@ ImagingPlatform::ImagingPlatform(QWidget *parent):
 	m_scene->addItem(m_viewer);
 
 	initCameraComboBox();
-	ui->comboBox_camera->setCurrentIndex(0);
 
 	init();
 }
@@ -77,7 +75,7 @@ ImagingPlatform::~ImagingPlatform()
 	delete ui;
 }
 
-void ImagingPlatform::initCameraComboBox()
+inline void ImagingPlatform::initCameraComboBox()
 {
 	// addItem()函数会发出currentIndexChanged(int index)这个信号，这个信号会绑定一个槽
 	// 但这时我不想触发绑定的槽，因此先要把信号block掉
@@ -91,7 +89,7 @@ void ImagingPlatform::initCameraComboBox()
 	ui->comboBox_camera->blockSignals(false);
 }
 
-void ImagingPlatform::init()
+inline void ImagingPlatform::init()
 {
 	connect(this, &ImagingPlatform::updateXYPosition, this, &ImagingPlatform::on_updateXYPosition);
 	connect(this, &ImagingPlatform::updateZPosition, this, &ImagingPlatform::on_updateZPosition);
@@ -122,7 +120,7 @@ void ImagingPlatform::init()
 	connect(this, &ImagingPlatform::setStopEnable, this, &ImagingPlatform::on_setStopEnable);
 }
 
-bool ImagingPlatform::checkStage()
+inline bool ImagingPlatform::checkStage()
 {
 	if (m_stage == nullptr || m_stage->getState() == StageState::OFFLINE) {
 		QMessageBox::warning(this, "Warning", u8"位移台未连接");
@@ -134,7 +132,12 @@ bool ImagingPlatform::checkStage()
 
 void ImagingPlatform::on_comboBox_camera_currentIndexChanged(int index)
 {
+	if (m_camera) {
+		m_camera->stopSequenceAcquisition();
+	}
+	
 	QString cameraName = ui->comboBox_camera->currentData().value<QString>();
+	m_camera.reset();
 	
 	if (cameraName == "DemoCam") {
 		m_camera = std::make_shared<DemoCam>();
@@ -150,12 +153,12 @@ void ImagingPlatform::on_comboBox_camera_currentIndexChanged(int index)
 void ImagingPlatform::on_pushButton_live_clicked()
 {
 	if (!m_camera) {
-		QMessageBox::warning(this, "warning", "未检测到相机");
+		QMessageBox::warning(this, "warning", u8"未检测到相机");
 		return;
 	}
 
 	if (m_camera->getState() == CameraState::OFFLINE) {
-		QMessageBox::warning(this, "warning", "相机连接异常");
+		QMessageBox::warning(this, "warning", u8"相机连接异常");
 		return;
 	}
 
@@ -168,33 +171,30 @@ void ImagingPlatform::on_pushButton_live_clicked()
 	qDebug() << u8"开始实时显示";
 
 	std::thread thread_living([this] {
+		cv::Mat dest;
 		while (m_running) {
-			while (m_camera->isCapturing()) {
+			while (m_camera && m_camera->isCapturing()) {
 				ImgBuffer* buffer = m_camera->getTopBuffer();
-#ifndef _DEBUG
-				printf("get Top : %p\n", buffer->getPixels());
-#endif // !_DEBUG
-
-				double ratio = 1. * buffer->width() / buffer->height();
-
-				cv::Mat dest;
-
 				if (buffer->channel() == 1) {
-					cv::Mat origin(buffer->height(), buffer->width(), CV_16UC1, buffer->getPixels());
-					// TODO:处理闪烁问题
-					cv::normalize(origin, dest, 0., 255., cv::NORM_MINMAX, CV_8UC1);
+					if (buffer->depth() == 1) {
+						dest = cv::Mat(buffer->height(), buffer->width(), CV_8UC1, buffer->getPixels());
+					}
+					else {
+						cv::Mat origin(buffer->height(), buffer->width(), CV_16UC1, buffer->getPixels());
+						// TODO:处理闪烁问题
+						cv::normalize(origin, dest, 0., 255., cv::NORM_MINMAX, CV_8UC1);
+					}
 				}
 				else {
 					dest = cv::Mat(buffer->height(), buffer->width(), CV_8UC3, buffer->getPixels());
 				}
 
-				QImage image(dest.data, dest.cols, dest.rows, 
-					dest.channels == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
-				QPixmap pixmap = QPixmap::fromImage(image.scaled(600 * ratio, 600));
+				QImage image(dest.data, dest.cols, dest.rows,
+					dest.channels() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
 
-#ifndef _DEBUG
-				printf("construct pixmap %d %d\n", pixmap.width(), pixmap.height());
-#endif // !_DEBUG
+				double ratio = 1. * image.width() / image.height();
+				QPixmap pixmap = QPixmap::fromImage(image.scaled(FOVHEIGHT * ratio, FOVHEIGHT));
+
 				emit updateViewer(pixmap);
 			}
 		}
@@ -431,35 +431,67 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 			<< " YStepSize : " << ui->lineEdit_YSS->text().toStdString()
 			<< std::endl;
 
-		char filename[256] = { 0 };
-
 		bool forward = true;
 
-		QString saveDir = ui->lineEdit_saveDir->text();
-		sprintf_s(filename, 256, "%s\\%d.tif", saveDir.toStdString().c_str(), fileIndex++);
-		TinyTIFFWriterFile* tif = TinyTIFFWriter_open(filename, 
-			m_camera->getBitDepth() * 8, 
-			TinyTIFFWriter_UInt,
-			m_camera->getChannel(),
-			m_camera->getImageWidth(),
-			m_camera->getImageHeight(),
-			m_camera->getChannel() == 1 ? TinyTIFFWriter_Greyscale : TinyTIFFWriter_RGB
-		);
+		TinyTIFFWriterFile* tif = nullptr;
+
+		// 一个stack最多只能存2GB，因此需要算出一个stack最多能存多少帧
+		int maxFrame = 2048U * 1024U * 1024U / m_camera->getBitDepth() * m_camera->getChannel()
+			* m_camera->getImageWidth() * m_camera->getImageHeight();
+		int curFrame = maxFrame, subFile = 0;
 
 		emit setStopEnable(true);
+
+		cv::Mat dest;
 
 		for (int y = 0; y < YStepNum && !m_scanStop; y++) {
 			for (int x = 0; x < XStepNum && !m_scanStop; x++) {
 				if (save) {
 					ImgBuffer* buffer = m_camera->getTopBuffer();
+
+					if (curFrame == maxFrame) {
+						if (tif) {
+							TinyTIFFWriter_close(tif);
+						}
+						char filename[256];
+						sprintf_s(filename, sizeof filename, "%s\\%d_%d.tif", 
+							ui->lineEdit_saveDir->text().toStdString().c_str(),
+							fileIndex++, subFile++);
+						tif = TinyTIFFWriter_open(filename,
+							m_camera->getBitDepth() * 8,
+							TinyTIFFWriter_UInt,
+							m_camera->getChannel(),
+							m_camera->getImageWidth(),
+							m_camera->getImageHeight(),
+							m_camera->getChannel() == 1 ? 
+							TinyTIFFWriter_Greyscale : TinyTIFFWriter_RGB
+						);
+						curFrame = 0;
+					}
 					TinyTIFFWriter_writeImage(tif, buffer->getPixels());
+					curFrame++;
 				} else {
-					const uchar* data = m_camera->getCircularBufferTop();
-					QImage image(data, m_camera->getImageWidth(), m_camera->getImageHeight(),
-						m_camera->getChannel() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888);
+					ImgBuffer* buffer = m_camera->getTopBuffer();
+					if (buffer->channel() == 1) {
+						if (buffer->depth() == 1) {
+							dest = cv::Mat(buffer->height(), buffer->width(), CV_8UC1, buffer->getPixels());
+						}
+						else {
+							cv::Mat origin(buffer->height(), buffer->width(), CV_16UC1, buffer->getPixels());
+							// TODO:处理闪烁问题
+							cv::normalize(origin, dest, 0., 255., cv::NORM_MINMAX, CV_8UC1);
+						}
+					}
+					else {
+						dest = cv::Mat(buffer->height(), buffer->width(), CV_8UC3, buffer->getPixels());
+					}
+
+					double ratio = 1. * buffer->width() / buffer->height();
 					auto pair = m_stage->getXYPos();
 					QPoint point(pair.first, pair.second);
-					emit addFOV(point, image, y, forward ? x : XStepNum - 1 - x);
+					emit addFOV(point, QImage(dest.data, dest.cols, dest.rows,
+						dest.channels() == 1 ? QImage::Format_Grayscale8 : QImage::Format_BGR888).scaled(PREVIEWHEIGHT * ratio, PREVIEWHEIGHT), 
+						y, forward ? x : XStepNum - 1 - x);
 				}
 
 				if (x != XStepNum - 1) {
@@ -488,7 +520,7 @@ void ImagingPlatform::on_pushButton_XYScan_clicked()
 
 		if (!save) emit showPreviewer();
 
-		std::cout << "XY Scanning finished..." << std::endl;
+		std::cout << "XY扫描结束" << std::endl;
 		emit enableXYScan();
 
 		m_camera->startSequenceAcquisition();
@@ -504,7 +536,7 @@ void ImagingPlatform::on_enableXYScan()
 void ImagingPlatform::on_addFOV(const QPoint& point, const QImage& image, int r, int c)
 {
 	PreviewItem* item = new PreviewItem(point);
-	item->setPixmap(QPixmap::fromImage(image.scaled(150, 100)));
+	item->setPixmap(QPixmap::fromImage(image));
 	m_previewer->addPreviewItem(item, r, c);
 }
 

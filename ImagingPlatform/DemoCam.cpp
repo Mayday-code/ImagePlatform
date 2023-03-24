@@ -39,6 +39,7 @@ bool DemoCam::startCapturing()
 	});
 
 	thread_capture.detach();
+	return true;
 }
 
 void DemoCam::generateSyntheticImage()

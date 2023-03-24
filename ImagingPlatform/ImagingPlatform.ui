@@ -450,21 +450,6 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
-          <item>
-           <property name="text">
-            <string>Demo</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>鑫图</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>滨松</string>
-           </property>
-          </item>
          </widget>
         </item>
        </layout>
