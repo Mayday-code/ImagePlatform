@@ -5,41 +5,52 @@
 #include <mutex>
 #include <condition_variable>
 
-class CircularBuffer {
+class CircularBuffer
+{
 public:
-	CircularBuffer() = default;
+	CircularBuffer(unsigned int memorySizeMB = 2048);
 	~CircularBuffer() = default;
 
-	// each camera should only initialize() its CircularBuffer once based on its property
-	// we assume that after initialize(), the pixDepth and channels of camera will not change
-	bool initialize(unsigned, unsigned, unsigned, unsigned);
+	unsigned getMemorySizeMB() const { return m_memorySizeMB; }
 
-	// the camera is not responsible for managing the size of its CiucularBuffer
-	// Instead, CiucularBuffer will change its size on its own when detecting the size of inserted image is 
-	// not equal with its size
-	bool insertImage(const unsigned char*, unsigned, unsigned);
+	bool initialize(unsigned channels, unsigned int w, unsigned int h, unsigned int pixDepth);
+
+	// 清空缓冲区（只需将参数重置，不用真的修改m_frameArray里的数据）
+	void clear();
+	unsigned long getSize() const;
+	unsigned long getFreeSize() const;
+	unsigned long getRemainingImageCount() const;
+	unsigned long long getImageCounter() const { std::lock_guard<std::mutex> lck(m_bufferMutex); return m_imageCounter; }
+
+	unsigned int width() const { std::lock_guard<std::mutex> lck(m_bufferMutex); return m_width; }
+	unsigned int height() const { std::lock_guard<std::mutex> lck(m_bufferMutex); return m_height; }
+	unsigned int depth() const { std::lock_guard<std::mutex> lck(m_bufferMutex); return m_pixDepth; }
+
 	ImgBuffer* getTopImageBuffer();
-	bool resize(unsigned, unsigned);
+	ImgBuffer* getNextImageBuffer();
+	bool insertImage(const unsigned char* pixArray, unsigned int width, unsigned int height);
 
-	unsigned width() const { return m_width; }
-	unsigned height() const { return m_height; }
-	unsigned depth() const { return m_pixDepth; }
-	unsigned channels() const { return m_channels; }
-	unsigned long long getImageCounter() const { return m_imageCounter; }
+	long getInsertIndex() const { std::lock_guard<std::mutex> lck(m_bufferMutex); return m_insertIndex; }
+	long getSaveIndex() const { std::lock_guard<std::mutex> lck(m_bufferMutex); return m_saveIndex; }
 
 private:
-	// members
-	unsigned m_memorySizeMB = 1024;
-	std::vector<ImgBuffer> m_frameArray;
+	unsigned int m_width;
+	unsigned int m_height;
+	unsigned int m_pixDepth;
+	unsigned int m_numChannels;
+	unsigned long long m_imageCounter;
 
-	// CircularBuffer is responsible for maintaining the size of its ImgBuffer 
-	unsigned m_width = 0;
-	unsigned m_height = 0;
-	unsigned m_pixDepth = 0;// in byte
-	unsigned m_channels = 0;
-	unsigned m_insertIndex = 0;
-	bool m_overflow = false;
-	unsigned long long m_imageCounter = 0;
-	std::mutex m_bufferLock;
-	std::condition_variable m_notEmpty;
+	// Invariants:
+	// 0 <= m_saveIndex <= m_insertIndex
+	// m_insertIndex - m_saveIndex <= m_frameArray.size()
+	// 溢出之后前一轮的数据都会被破坏
+	long m_insertIndex;
+	long m_saveIndex;
+
+	unsigned long m_memorySizeMB;
+
+	//bool overflow_;
+	std::vector<ImgBuffer> m_frameArray;
+	mutable std::mutex m_bufferMutex;
+	mutable std::condition_variable m_bufferAvailable;
 };

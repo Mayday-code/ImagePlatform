@@ -26,7 +26,7 @@ public:
 signals:
 	void updateXYPosition();
 	void updateZPosition();
-	void updateViewer();
+	void updateViewer(QPixmap pixmap);
 	void enableXYScan();
 	void addFOV(const QPoint& point, const QImage& image, int r, int c);
 	void showPreviewer();
@@ -38,19 +38,32 @@ private:
 	ImageViewer* m_viewer;
 	Previewer *m_previewer = nullptr;
 
-	std::unique_ptr<Camera> m_camera;
-	std::unique_ptr<Stage> m_stage;
+	std::shared_ptr<Camera> m_camera;
+	std::shared_ptr<Stage> m_stage;
 
 	std::atomic_bool m_scanStop{ false };
 	std::atomic_bool m_running{ true };
 
+	int fileIndex = 0;
+
 private:
+	// 将各个相机选项添加到UI
+	void initCameraComboBox();
+
+	// 关联信号和槽
 	void init();
 	bool checkStage();
 
 private slots:
 	// camera slots
+	void on_comboBox_camera_currentIndexChanged(int index);
 	void on_pushButton_live_clicked();
+	void on_pushButton_expApply_clicked();
+	void on_pushButton_roiApply_clicked();
+	void on_lineEdit_hPos_editingFinished();
+	void on_lineEdit_vPos_editingFinished();
+	void on_lineEdit_hSize_editingFinished();
+	void on_lineEdit_vSize_editingFinished();
 
 	// stage slots
 	void on_pushButton_stageConnect_clicked();
@@ -70,7 +83,7 @@ private slots:
 	void on_updateZPosition(); 
 
 	//viewer slot
-	void on_updateViewer();
+	void on_updateViewer(QPixmap pixmap);
 
 	//function slots
 	void on_pushButton_XYScan_clicked();

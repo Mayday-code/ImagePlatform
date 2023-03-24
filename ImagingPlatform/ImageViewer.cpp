@@ -3,13 +3,11 @@
 #include <QPainter>
 #include <iostream>
 
-void ImageViewer::setPixmap(const QPixmap& rhs)
+void ImageViewer::display(const QPixmap &pixmap)
 {
-	std::lock_guard<std::mutex> lck(updateLock);
-	m_pixmap = rhs;
-#ifndef _DEBUG
-	std::cout << "get QPixmap : " << m_pixmap.height() << ' ' << m_pixmap.width() << std::endl;
-#endif // !_DEBUG
+	std::lock_guard<std::mutex> g(updateLock);
+	m_pixmap = pixmap;
+	this->update();
 }
 
 QRectF ImageViewer::boundingRect() const
@@ -20,10 +18,25 @@ QRectF ImageViewer::boundingRect() const
 void ImageViewer::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget)
 {
 	std::lock_guard<std::mutex> lck(updateLock);
-#ifndef _DEBUG
-	static int index = 0;
-	std::cout << "painting!!!  " << index++ << std::endl;
-#endif // !_DEBUG
-
 	painter->drawPixmap(-m_pixmap.width() / 2, -m_pixmap.height() / 2, m_pixmap);
+
+	if (scale != prescale) {
+		setScale(scale);
+		prescale = scale;
+	}
+}
+
+void ImageViewer::wheelEvent(QGraphicsSceneWheelEvent* e)
+{
+	if (e->delta() > 0) {
+		if (scale >= 10) return;
+		scale *= 1.1;
+		return;
+	}
+
+	if (e->delta() < 0) {
+		if (scale <= 0.1) return;
+		scale *= 0.9;
+		return;
+	}
 }

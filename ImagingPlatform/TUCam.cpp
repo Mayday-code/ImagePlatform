@@ -4,21 +4,24 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <QApplication>
+#include <stdio.h>
 
-TUCam::TUCam(int ID)
+TUCam::TUCam()
 {
-	if (initApi() == TUCAMRET_NO_CAMERA) {
-		std::cout << "ERROR : TUCAMRET_NO_CAMERA   please check camera connection!" << std::endl;
-		return;
-	}
+	if (!init()) return;
+	if (!open()) return;
 
-	if (openCamera(ID) != TUCAMRET_SUCCESS) {
-		std::cout << "ERROR : in open camera!" << std::endl;
-		return;
-	}
+	m_state = CameraState::ONLINE;
 
-	m_handle = m_opCam.hIdxTUCam;
-	m_state = DeviceState::REGISTER;
+	//初始设置要与界面的显示同步
+	setROI(0, 0, 1824, 1216);
+	setExposure(200);
+
+	m_pixDepth = 1;
+	m_channel = 3;
+
+	m_cbuf.initialize(m_channel, m_width, m_height, m_pixDepth);
 
 	TUCAM_PROP_ATTR attrProp;
 	attrProp.nIdxChn = 0;    // Current channel 
@@ -38,123 +41,52 @@ TUCam::TUCam(int ID)
 	}
 
 	TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 2);
+	TUCAM_Capa_SetValue(m_handle, TUIDC_VERTICAL, 1);
 
-
-	m_height = 1216;
-	m_width = 1824;
-	m_pixDepth = 1;
-	m_channel = 3;
-
-	m_cbuf.initialize(m_width, m_height, m_pixDepth, m_channel);
-
-	auto ret = startCap();
-	if (ret != TUCAMRET_SUCCESS) {
-		std::cout << "ERROR : in starting capture ( CODE = " << ret << " )" << std::endl;
-		return;
-	}
-
-	std::cout << "camera is connected successfully" << std::endl;
+	std::cout << "相机连接成功" << std::endl;
 }
 
 TUCam::~TUCam()
 {
-	if (nullptr != m_handle) {
-		stopCap();
-		TUCAM_Dev_Close(m_handle);
-	}
-	printf("Close the camera success\n");
-
-	unInitApi();
-}
-
-void TUCam::setExposure(double exp_ms) 
-{ 
-	if (m_state == DeviceState::NOTREGISTER) {
-		std::cout << "ERROR : camera is not registered" << std::endl;
-	}
-
-	// if the camera is capturing when setting exposure, remember to restore it after that
-	bool isCapturing = this->isCapturing();
-
 	stopSequenceAcquisition();
-
-	TUCAMRET ret = TUCAM_Prop_SetValue(m_handle, TUIDP_EXPOSURETM, exp_ms); 
-	if (ret != TUCAMRET_SUCCESS) {
-		std::cout << "ERROR : in setExposure";
-	}
-	std::cout << "camera setExposure:  " << exp_ms << std::endl;
-
-	if (isCapturing) {
-		startSequenceAcquisition();
-	}
+	TUCAM_Dev_Close(m_handle);
+	printf("与相机断开连接\n");
+	TUCAM_Api_Uninit();
 }
 
-void TUCam::startSequenceAcquisition()
-{
-	if (m_state == DeviceState::NOTREGISTER) {
-		std::cout << "ERROR : camara is not registered" << std::endl;
-		return;
-	}
-
-	if (isCapturing()) {
-		return;
-	}
-
-	std::lock_guard<std::mutex> lck(m_stopLock);
-	m_stop = false;
-
-	std::cout << "StartSequenceAcquisition..." << std::endl;
-
-	std::thread thread_capture([this] {
-		while (isCapturing()) {
-			if (TUCAMRET_SUCCESS == TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame)) {
-				m_cbuf.insertImage(m_frame.pBuffer + m_frame.usOffset, m_frame.usWidth, m_frame.usHeight);
-			} else {
-				std::cout << "ERROR : fail to grab the frame" << std::endl;
-			}
-		}
-		std::cout << "sequence acquisition exits" << std::endl;
-	});
-	thread_capture.detach();
-}
-
-TUCAMRET TUCam::initApi()
+bool TUCam::init()
 {
 	/* Get the current directory */
 	m_itApi.uiCamCount = 0;
-	char configPath[] = ".\\";
+	char configPath[256];
+	strcpy_s(configPath, sizeof configPath, QApplication::applicationDirPath().toStdString().c_str());
 	m_itApi.pstrConfigPath = configPath;
 
-	TUCAM_Api_Init(&m_itApi);
-
-	printf("Connect %d camera\n", m_itApi.uiCamCount);
-
-	if (0 == m_itApi.uiCamCount)
-	{
-		return TUCAMRET_NO_CAMERA;
+	auto ret = TUCAM_Api_Init(&m_itApi);
+	if (TUCAMRET_SUCCESS != ret) {
+		std::cout << "初始化出错!!!错误代码: " << std::hex << ret << std::endl;
+		return false;
 	}
 
-	return TUCAMRET_SUCCESS;
+	// 一开始printf()会将数据存入IO缓冲区，由于是行缓冲，
+	// 行缓冲的特点是遇到\n时会立马将C缓冲区的内容刷新到内核缓冲区
+	printf("检测到 %d 台相机\n", m_itApi.uiCamCount);
+	return true;
 }
 
-TUCAMRET TUCam::unInitApi()
+bool TUCam::open()
 {
-	return TUCAM_Api_Uninit();
-}
-
-TUCAMRET TUCam::openCamera(unsigned uiIdx)
-{
-	if (uiIdx >= m_itApi.uiCamCount)
-	{
-		return TUCAMRET_OUT_OF_RANGE;
+	m_opCam.uiIdxOpen = 0;
+	auto ret = TUCAM_Dev_Open(&m_opCam);
+	if (TUCAMRET_SUCCESS != ret) {
+		printf("打开相机出错!!!错误代码: %x\n", ret);
+		return false;
 	}
-
-	m_opCam.uiIdxOpen = uiIdx;
-
-	return TUCAM_Dev_Open(&m_opCam);
+	m_handle = m_opCam.hIdxTUCam;
+	return true;
 }
 
-TUCAMRET TUCam::startCap()
+bool TUCam::startCapturing()
 {
 	m_frame.pBuffer = NULL;
 	m_frame.ucFormatGet = TUFRM_FMT_RGB888;
@@ -163,35 +95,64 @@ TUCAMRET TUCam::startCap()
 	TUCAM_Buf_Alloc(m_handle, &m_frame);
 
 	auto ret = TUCAM_Cap_Start(m_opCam.hIdxTUCam, (UINT32)TUCCM_SEQUENCE);
-	if (ret != TUCAMRET_SUCCESS) {
-		return ret;
+	if (TUCAMRET_SUCCESS != ret) {
+		printf("无法启动采集!!!错误代码: %x\n", ret);
+		return false;
 	}
 
-	return TUCAMRET_SUCCESS;
+	std::lock_guard<std::mutex> lck(m_stateMutex);
+	m_state = CameraState::LIVING;
+
+	std::thread thread_capture([this] {
+		while (isCapturing()) {
+			auto ret = TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame);
+			if (TUCAMRET_SUCCESS == ret) {
+				m_cbuf.insertImage(m_frame.pBuffer + m_frame.usOffset, m_frame.usWidth, m_frame.usHeight);
+			} else {
+				printf("抓取帧出错!!!错误代码: %x\n", ret);
+			}
+		}
+		printf("退出采图\n");
+
+		// 将相机采集真正停止
+		stopCap();
+	});
+	thread_capture.detach();
 }
 
-bool TUCam::save(const char* filename, int format)
+bool TUCam::setDeviceExp(double exp_ms)
 {
-	m_fs.nSaveFmt = (INT32)format;
+	TUCAMRET ret = TUCAM_Prop_SetValue(m_handle, TUIDP_EXPOSURETM, exp_ms);
+	TUCAM_Prop_GetValue(m_handle, TUIDP_EXPOSURETM, &m_exp);
+	if (ret != TUCAMRET_SUCCESS) {
+		printf("设置曝光出错!!!错误代码: %x\n", ret);
+		return false;
+	}
+	return true;
+}
 
-	char savePath[256] = { 0 };
-	strcpy_s(savePath, strlen(saveDir) + 1, saveDir);
-	strcat_s(savePath, strlen(savePath) + strlen(filename) + 1, filename);
+bool TUCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize)
+{
+	TUCAM_ROI_ATTR roiAttr;
+	roiAttr.bEnable = TRUE;
+	roiAttr.nVOffset = vPos;
+	roiAttr.nHOffset = hPos;
+	roiAttr.nWidth = hSize;
+	roiAttr.nHeight = vSize;
+	
+	auto ret = TUCAM_Cap_SetROI(m_opCam.hIdxTUCam, roiAttr);
 
-	m_fs.pstrSavePath = savePath;       /* path */
+	TUCAM_ROI_ATTR getROI;
+	getROI.bEnable = TRUE;
+	TUCAM_Cap_GetROI(m_handle, &getROI);
 
-	if (TUCAMRET_SUCCESS == TUCAM_Buf_WaitForFrame(m_opCam.hIdxTUCam, &m_frame)) {
-		TUCAM_FRAME frame;
-		memcpy(&frame, &m_frame, sizeof(TUCAM_FRAME));
-		m_fs.pFrame = &frame;
+	m_vPos = getROI.nVOffset;
+	m_hPos = getROI.nHOffset;
+	m_width = getROI.nWidth;
+	m_height = getROI.nHeight;
 
-		if (TUCAMRET_SUCCESS != TUCAM_File_SaveImage(m_handle, m_fs)) {
-			std::cout << "ERROR : fail to save frame" << std::endl;
-			return false;
-		}
-
-	} else {
-		std::cout << "ERROR : fail to grab the frame" << std::endl;
+	if (TUCAMRET_SUCCESS != ret) {
+		printf("设置ROI出错!!!错误代码: %x\n", ret);
 		return false;
 	}
 

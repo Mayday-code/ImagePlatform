@@ -16,7 +16,7 @@ public:
 	~DemoStage() { std::cout << "DemoStage destructed" << std::endl; }
 
 	void init() { 
-		m_state = DeviceState::REGISTER;
+		m_state = StageState::ONLINE;
 		std::cout << "DemoStage initialized" << std::endl; 
 	}
 

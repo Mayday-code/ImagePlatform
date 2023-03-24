@@ -47,8 +47,8 @@ private:
 
 private:
 	int m_ret;			    
-	char m_rx[1024];
-	char m_command[256];
+	char m_rx[1024]{ '\0' };
+	char m_command[256]{ '\0' };
 
 	int m_stageBusy;
 	int m_zBusy;

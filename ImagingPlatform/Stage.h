@@ -76,9 +76,9 @@ public:
 	 */
 	virtual void setZSS(int t_ZSS) = 0;
 
-	DeviceState getState() const { return m_state; }
+	StageState getState() const { return m_state; }
 protected:
-	DeviceState m_state = DeviceState::NOTREGISTER;
+	StageState m_state = StageState::OFFLINE;
 
 	int m_sessionID;	//ID of this connection
 

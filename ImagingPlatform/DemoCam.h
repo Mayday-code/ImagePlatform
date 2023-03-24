@@ -6,23 +6,33 @@
 class DemoCam : public Camera {
 public:
 	DemoCam();
-	~DemoCam() { std::cout << "DemoCam destructed..." << std::endl; }
-
-	void setExposure(double exp_ms) override { };
-	void startSequenceAcquisition() override;
-
-	// implement in base class?
-	const unsigned char* getCircularBufferTop() override { return m_cbuf.getTopImageBuffer()->getPixels(); }
-	unsigned long long getCircularBufferImageCount() const override { return m_cbuf.getImageCounter(); }
-
-	bool save(const char* filename, int format) override {
-		std::cout << "save finished" << std::endl;
-		return true;
+	~DemoCam() { 
+		stopSequenceAcquisition();
+		std::cout << "DemoCam destructed..." << std::endl; 
 	}
+
+	virtual bool isSupportResolutionSwitching() const { return false; }
 
 private:
 	void generateSyntheticImage();
 
+	virtual bool init() override { std::cout << "init DemoCam" << std::endl; return true; }
+	virtual bool open() override { std::cout << "Open DemoCam" << std::endl; return true; }
+	virtual bool startCapturing() override;
+	virtual bool setDeviceExp(double exp_ms) override { 
+		std::cout << "ÉèÖÃÆØ¹â: " << exp_ms << "ºÁÃë" << std::endl; 
+		return true;
+	}
+	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) 
+		override {
+		m_hPos = hPos;
+		m_vPos = vPos;
+		m_width = hSize;
+		m_height = vSize;
+		return true;
+	}
+
+	
 private:
 	ImgBuffer m_img;
 };
