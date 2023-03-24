@@ -170,6 +170,8 @@ void ImagingPlatform::on_pushButton_live_clicked()
 
 	qDebug() << u8"开始实时显示";
 
+
+
 	std::thread thread_living([this] {
 		cv::Mat dest;
 		while (m_running) {
