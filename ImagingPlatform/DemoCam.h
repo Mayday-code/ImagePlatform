@@ -3,7 +3,8 @@
 #include "Camera.h"
 #include <iostream>
 
-class DemoCam : public Camera {
+class DemoCam : public Camera 
+{
 public:
 	DemoCam();
 	~DemoCam() { 
@@ -12,6 +13,7 @@ public:
 	}
 
 	virtual bool isSupportResolutionSwitching() const { return false; }
+	virtual QList<QString> getResolution() { return {}; }
 
 private:
 	void generateSyntheticImage();
@@ -32,7 +34,13 @@ private:
 		return true;
 	}
 
-	
+	virtual bool setDeviceRes(int index) {
+		if (!isSupportResolutionSwitching()) {
+			std::cout << "该相机不支持切换分辨率" << std::endl;
+		}
+		return false;
+	}
+
 private:
 	ImgBuffer m_img;
 };

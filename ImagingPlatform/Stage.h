@@ -51,7 +51,7 @@ public:
 	virtual std::pair<double, double> getXYPos() = 0;
 
 	/*!
-	 * \brief Request the coordinate which can be directly printed in UI.
+	 * \brief Request the coordinate(in nm) which can be directly printed in UI.
 	 */
 	virtual double getZPos() = 0;
 

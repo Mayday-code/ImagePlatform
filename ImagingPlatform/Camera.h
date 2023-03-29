@@ -3,6 +3,8 @@
 #include <mutex>
 #include <iostream>
 #include <atomic>
+#include <QString>
+#include <QList>
 #include "CircularBuffer.h"
 #include "MyDefine.h"
 
@@ -58,6 +60,8 @@ protected:
 	 */
 	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) = 0;
 
+	virtual bool setDeviceRes(int index) = 0;
+
 public:
 	virtual ~Camera() = default;
 
@@ -65,6 +69,33 @@ public:
 	 * \brief 相机是否支持分辨率切换
 	 */
 	virtual bool isSupportResolutionSwitching() const = 0;
+
+	virtual QList<QString> getResolution() = 0;
+
+	/*!
+	 * \brief 切换分辨率
+	 */
+	bool setResolution(int index) {
+		if (getState() == CameraState::OFFLINE) {
+			std::cout << "相机未连接" << std::endl;
+			return false;
+		}
+
+		bool isContinue = false;
+		if (getState() == CameraState::LIVING) {
+			isContinue = true;
+			stopSequenceAcquisition();
+		}
+
+		std::cout << "切换分辨率" <<  std::endl;
+
+		setDeviceRes(index);
+
+		if (isContinue) {
+			startSequenceAcquisition();
+		}
+		return true;
+	}
 
 	/*!
 	 * \brief Set exposure in milliseconds.
