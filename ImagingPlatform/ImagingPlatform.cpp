@@ -148,6 +148,22 @@ void ImagingPlatform::on_comboBox_camera_currentIndexChanged(int index)
 	else if (cameraName == "TUCam") {
 		m_camera = std::make_shared<TUCam>();
 	}
+
+	if (!m_camera->isSupportResolutionSwitching()) ui->comboBox_res->setDisabled(true);
+	else {
+		ui->comboBox_res->setEnabled(true);
+		ui->comboBox_res->blockSignals(true);
+		QList<QString> res = m_camera->getResolution();
+		for (auto& r : res) {
+			ui->comboBox_res->addItem(r);
+		}
+		ui->comboBox_res->blockSignals(false);
+	}
+}
+
+void  ImagingPlatform::on_comboBox_res_currentIndexChanged(int index)
+{
+	m_camera->setResolution(index);
 }
 
 void ImagingPlatform::on_pushButton_live_clicked()
@@ -328,6 +344,33 @@ void ImagingPlatform::on_pushButton_ZRightShift_clicked()
 {
 	if (checkStage()) {
 		m_stage->mvrZ(true);
+		emit updateZPosition();
+	}
+}
+
+void ImagingPlatform::on_pushButton_addAnchor_clicked()
+{
+	if (checkStage()) {
+		auto xyPos = m_stage->getXYPos();
+		double zPos = m_stage->getZPos();
+		QString text = QString::number(xyPos.first) + "x" + QString::number(xyPos.second) + "x" + QString::number(zPos);
+		QList<QVariant> pos{ xyPos.first, xyPos.second, zPos };
+		ui->comboBox_anchor->addItem(text, pos);
+	}
+}
+
+void ImagingPlatform::on_pushButton_clearAnchor_clicked()
+{
+	ui->comboBox_anchor->clear();
+}
+
+void ImagingPlatform::on_comboBox_anchor_activated(int index)
+{
+	if (checkStage()) {
+		QList<QVariant> pos = ui->comboBox_anchor->currentData().toList();
+		m_stage->moveXY(pos[0].toDouble(), pos[1].toDouble());
+		m_stage->moveZ(pos[2].toDouble());
+		emit updateXYPosition();
 		emit updateZPosition();
 	}
 }

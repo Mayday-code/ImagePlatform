@@ -57,6 +57,7 @@ private:
 private slots:
 	// camera slots
 	void on_comboBox_camera_currentIndexChanged(int index);
+	void on_comboBox_res_currentIndexChanged(int index);
 	void on_pushButton_live_clicked();
 	void on_pushButton_expApply_clicked();
 	void on_pushButton_roiApply_clicked();
@@ -73,6 +74,9 @@ private slots:
 	void on_pushButton_XRightShift_clicked();
 	void on_pushButton_YRightShift_clicked();
 	void on_pushButton_ZRightShift_clicked();
+	void on_pushButton_addAnchor_clicked();
+	void on_pushButton_clearAnchor_clicked();
+	void on_comboBox_anchor_activated(int index);
 
 	void on_moveTo(const QPoint& point);
 

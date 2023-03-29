@@ -10,6 +10,7 @@ public:
 	~HamCam();
 
 	virtual bool isSupportResolutionSwitching() const { return false; }
+	virtual QList<QString> getResolution() { return {}; }
 
 private:
 	virtual bool init() override;
@@ -19,6 +20,16 @@ private:
 	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) override;
 
 	void stopCap();
+
+	virtual bool setDeviceRes(int index) {
+		if (!isSupportResolutionSwitching()) {
+			std::cout << "该相机不支持切换分辨率" << std::endl;
+		}
+		return false;
+	}
+
+	
+
 private:
 	HDCAM m_hdcam;
 	HDCAMWAIT m_hwait;

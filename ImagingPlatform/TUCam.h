@@ -10,6 +10,7 @@ public:
 	~TUCam();
 
 	virtual bool isSupportResolutionSwitching() const { return true; }
+	virtual QList<QString> getResolution() { return  { "5472x3648", "2736x1824", "1824x1216" }; }
 
 private:
 	virtual bool init() override;
@@ -17,6 +18,7 @@ private:
 	virtual bool startCapturing() override;
 	virtual bool setDeviceExp(double exp_ms) override;
 	virtual bool setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned vSize) override;
+	virtual bool setDeviceRes(int index) override;
 
 	void stopCap();
 private:

@@ -15,7 +15,7 @@ TUCam::TUCam()
 	m_state = CameraState::ONLINE;
 
 	//初始设置要与界面的显示同步
-	setROI(0, 0, 1824, 1216);
+	setROI(0, 0, 5472, 3648);
 	setExposure(200);
 
 	m_pixDepth = 1;
@@ -40,7 +40,7 @@ TUCam::TUCam()
 		std::cout << "Current exposure : " << dbVal << std::endl;
 	}
 
-	TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 2);
+	TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 0);
 	TUCAM_Capa_SetValue(m_handle, TUIDC_VERTICAL, 1);
 
 	std::cout << "相机连接成功" << std::endl;
@@ -154,6 +154,24 @@ bool TUCam::setDeviceROI(unsigned hPos, unsigned vPos, unsigned hSize, unsigned 
 	if (TUCAMRET_SUCCESS != ret) {
 		printf("设置ROI出错!!!错误代码: %x\n", ret);
 		return false;
+	}
+
+	return true;
+}
+
+bool TUCam::setDeviceRes(int index)
+{
+	if (index == 0) {
+		TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 0);
+		setROI(0, 0, 5472, 3648);
+	}
+	else if (index == 1) {
+		TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 1);
+		setROI(0, 0, 2736, 1824);
+	}
+	else if (index == 2) {
+		TUCAM_Capa_SetValue(m_handle, TUIDC_RESOLUTION, 2);
+		setROI(0, 0, 1824, 1216);
 	}
 
 	return true;
